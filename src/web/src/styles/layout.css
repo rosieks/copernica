@@ -1,0 +1,162 @@
+/* App shell (contracts/ui.md → App shell and regions; research R5). */
+.app {
+  min-height: 100vh;
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 80;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-accent-text);
+  font-weight: var(--weight-medium);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--header-height);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-subtle);
+}
+
+.header__brand {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+
+.header__spacer {
+  flex: 1;
+}
+
+.header__space {
+  min-width: 0;
+}
+
+.header__space-name,
+.header__user-name {
+  overflow: hidden;
+  max-width: 14rem;
+  text-overflow: ellipsis;
+}
+
+.header__space-spacer {
+  display: inline-block;
+  width: 15px;
+}
+
+@media (max-width: 767px) {
+  .header__user-name {
+    display: none;
+  }
+
+  .header__space-name {
+    max-width: 8rem;
+  }
+}
+
+.main {
+  min-width: 0;
+  padding: var(--space-5) var(--space-4);
+}
+
+/* Space screens: tree | page | discussions. */
+.space-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.space-grid__nav,
+.space-grid__aside {
+  display: none;
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+}
+
+.space-grid__nav {
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.space-grid__aside {
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+/* The discussions column scrolls with the page (threads sit beside their fragments), so it
+   has no scrollbar of its own. */
+.space-grid__aside {
+  position: static;
+  height: auto;
+  overflow: visible;
+}
+
+.space-grid .main {
+  padding: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .space-grid {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .space-grid__nav {
+    display: block;
+  }
+
+  .space-grid .main {
+    padding: var(--space-5) var(--space-6);
+  }
+}
+
+@media (min-width: 1200px) {
+  .space-grid--with-aside {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--aside-width);
+  }
+
+  .space-grid--with-aside .space-grid__aside {
+    display: block;
+  }
+}
+
+.space-nav__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.space-nav__title {
+  margin: 0;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.space-nav__title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.space-nav__new {
+  margin-bottom: var(--space-3);
+}

@@ -1,0 +1,166 @@
+.discussions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.discussions__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.discussions__title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.discussions__hint {
+  margin: 0;
+}
+
+.discussions__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.discussion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.discussion--active {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 1px var(--color-accent-border);
+}
+
+.discussion--draft {
+  border-color: var(--color-accent-border);
+}
+
+.discussion__top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.discussion__quote {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--color-highlight-underline);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-subtle);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.discussion__quote--outdated {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.discussion__badges:empty {
+  display: none;
+}
+
+.discussion__toggle {
+  justify-self: start;
+}
+
+.comment {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.comment:first-of-type {
+  border-top: none;
+}
+
+.comment:focus-visible {
+  border-radius: var(--radius-sm);
+}
+
+.comment__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.comment__author {
+  font-weight: var(--weight-medium);
+}
+
+.comment__menu {
+  margin-left: auto;
+}
+
+.comment__body {
+  font-size: var(--text-sm);
+}
+
+.comment__body > :first-child {
+  margin-top: 0;
+}
+
+.comment__body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Keyboard markers over painted fragments (HighlightMarkers). */
+.page__article-wrap {
+  position: relative;
+}
+
+.anchor-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.anchor-marker {
+  position: absolute;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.anchor-marker:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Margin layout (wide screens): threads at the height of their fragments. */
+.discussions__subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.discussions__margin {
+  position: relative;
+}
+
+.discussions__slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transition: top var(--duration-normal) ease-out;
+}

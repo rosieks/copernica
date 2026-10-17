@@ -8,11 +8,42 @@ public sealed record PageVersionDto(string CommitId, string Path, string AuthorN
 
 public sealed record HistoryPage(IReadOnlyList<PageVersionDto> Items, string? NextCursor);
 
+public enum HistoryStart
+{
+    Ok,
+
+    /// <summary>The start version is not a full commit id.</summary>
+    Malformed,
+
+    /// <summary>The start version does not exist or is not on the space branch.</summary>
+    NotFound,
+}
+
 /// <summary>Page history from git, following renames (FR-014).</summary>
 public sealed class HistoryService
 {
     public const int DefaultLimit = 50;
     public const int MaxLimit = 200;
+
+    /// <summary>
+    /// Checks a requested start version: it must be a full commit id reachable from the
+    /// branch head, so callers cannot probe arbitrary objects in the mirror.
+    /// </summary>
+    public HistoryStart CheckStart(Space space, string head, string version)
+    {
+        if (!PageService.IsCommitId(version))
+        {
+            return HistoryStart.Malformed;
+        }
+
+        using var repo = new Repository(space.MirrorPath);
+        if (repo.Lookup<Commit>(version) is not { } start || repo.Lookup<Commit>(head) is not { } tip)
+        {
+            return HistoryStart.NotFound;
+        }
+
+        return repo.ObjectDatabase.FindMergeBase(start, tip)?.Sha == start.Sha ? HistoryStart.Ok : HistoryStart.NotFound;
+    }
 
     public HistoryPage GetHistory(Space space, string head, string path, string? cursor, int? limit)
     {

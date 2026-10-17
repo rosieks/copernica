@@ -1,0 +1,8 @@
+.ui-popover {
+  z-index: 30;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-popover);
+  animation: ui-fade-in var(--duration-fast) ease-out;
+}

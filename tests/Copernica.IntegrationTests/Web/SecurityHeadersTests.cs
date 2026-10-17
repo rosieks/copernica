@@ -12,7 +12,7 @@ public sealed class SecurityHeadersTests : IDisposable
     [InlineData("/health/live")]
     [InlineData("/health/ready")]
     [InlineData("/api/spaces")]
-    [InlineData("/")]
+    // The SPA shell carries the same policy plus a style nonce; see ShellNonceTests.
     public async Task Every_response_carries_the_strict_security_headers(string path)
     {
         var response = await _factory.CreateAnonymousClient().GetAsync(path, TestContext.Current.CancellationToken);

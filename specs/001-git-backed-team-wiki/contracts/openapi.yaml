@@ -168,6 +168,14 @@ paths:
         - { $ref: '#/components/parameters/PagePath' }
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - name: version
+          in: query
+          required: false
+          schema: { type: string, pattern: '^[0-9a-f]{40}$' }
+          description: >
+            Commit id to start the history walk from (inclusive); defaults to the branch
+            head. Must be reachable from the space branch, otherwise 404. Malformed ids
+            give 400. Added by 002 (contracts/api-changes.md §1).
       responses:
         '200':
           description: Versions, newest first
@@ -462,12 +470,20 @@ components:
 
     SaveResult:
       type: object
-      required: [version, merged]
+      required: [version, merged, mergedAuthors]
       properties:
         version: { $ref: '#/components/schemas/PageVersionRef' }
         merged:
           type: boolean
           description: True if non-overlapping concurrent changes were combined
+        mergedAuthors:
+          type: array
+          items: { type: string }
+          description: >
+            Distinct author names, oldest first, of the commits that changed this page
+            between the edit's base and the branch tip it was merged with. Empty when no
+            change to this page was merged (also when only other pages changed). Added by
+            002 (contracts/api-changes.md §2).
 
     EditConflict:
       allOf:

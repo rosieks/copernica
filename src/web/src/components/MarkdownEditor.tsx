@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorState } from '@codemirror/state';
+import { tokenTheme } from './codemirrorTheme';
+import './MarkdownEditor.css';
 
 interface Props {
   value: string;
@@ -24,6 +26,7 @@ export function MarkdownEditor({ value, onChange, label }: Props) {
         extensions: [
           basicSetup,
           markdown(),
+          tokenTheme(),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': label }),
           EditorView.updateListener.of((update) => {

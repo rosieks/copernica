@@ -11,7 +11,11 @@ public sealed record CommitAuthor(string Name, string Email);
 
 public abstract record SaveOutcome
 {
-    public sealed record Saved(PageVersionRef Version, bool Merged) : SaveOutcome;
+    /// <param name="MergedAuthors">
+    /// Authors (oldest first) of the commits that changed this page between the edit's base and
+    /// the tip it was merged with; empty when nothing was merged into this page.
+    /// </param>
+    public sealed record Saved(PageVersionRef Version, bool Merged, IReadOnlyList<string> MergedAuthors) : SaveOutcome;
 
     public sealed record Conflict(
         string BaseSource,
@@ -80,7 +84,7 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             if (candidate.Sha == tip.Sha)
             {
                 // Nothing changed; report the current version.
-                return new SaveOutcome.Saved(VersionOf(tip, repositoryPath), Merged: false);
+                return new SaveOutcome.Saved(VersionOf(tip, repositoryPath), Merged: false, MergedAuthors: []);
             }
 
             var push = Publish(repo, space, candidate, credentials);
@@ -88,7 +92,7 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             {
                 case PushResult.Ok:
                     repo.Refs.UpdateTarget(repo.Refs[space.TrackingRef], candidate.Id, logMessage: "copernica: save");
-                    return new SaveOutcome.Saved(VersionOf(candidate, repositoryPath), plan.Merged);
+                    return new SaveOutcome.Saved(VersionOf(candidate, repositoryPath), plan.Merged, plan.MergedAuthors);
                 case PushResult.Stale:
                     logger.LogInformation("Branch of space {SpaceId} moved during save; retrying ({Attempt}/{Max}).", space.Id, attempt, MaxAttempts);
                     continue;
@@ -102,7 +106,10 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
         return new SaveOutcome.HostingUnavailable("The branch kept changing while saving. Please try again.");
     }
 
-    private sealed record Plan(Commit? Commit, bool Merged, SaveOutcome? Outcome);
+    private sealed record Plan(Commit? Commit, bool Merged, SaveOutcome? Outcome)
+    {
+        public IReadOnlyList<string> MergedAuthors { get; init; } = [];
+    }
 
     private Plan Prepare(Repository repo, Commit tip, PageChange change, string repositoryPath, CommitAuthor author)
     {
@@ -163,23 +170,20 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             return new Plan(null, false, Conflict(repo, baseCommit, tip, repositoryPath, change.Content ?? ""));
         }
 
+        var mergedAuthors = ChangedBy(repo, baseCommit, tip, repositoryPath).Reverse().Distinct(StringComparer.Ordinal).ToList();
         if (merge.Tree.Sha == tip.Tree.Sha)
         {
-            return new Plan(tip, true, null);
+            return new Plan(tip, true, null) { MergedAuthors = mergedAuthors };
         }
 
         // Linear history: one single-parent commit on top of the tip (research.md R5).
         var merged = repo.ObjectDatabase.CreateCommit(signature, signature, message, merge.Tree, [tip], prettifyMessage: false);
-        return new Plan(merged, true, null);
+        return new Plan(merged, true, null) { MergedAuthors = mergedAuthors };
     }
 
     private static SaveOutcome.Conflict Conflict(Repository repo, Commit baseCommit, Commit tip, string repositoryPath, string mine)
     {
-        var authors = repo.Commits
-            .QueryBy(repositoryPath, new CommitFilter { IncludeReachableFrom = tip, ExcludeReachableFrom = baseCommit })
-            .Select(e => e.Commit.Author.Name)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        var authors = ChangedBy(repo, baseCommit, tip, repositoryPath).Distinct(StringComparer.Ordinal).ToList();
 
         return new SaveOutcome.Conflict(
             Text(baseCommit, repositoryPath),
@@ -188,6 +192,13 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             authors,
             mine);
     }
+
+    /// <summary>Author names, newest first, of commits after <paramref name="baseCommit"/> that changed the file.</summary>
+    private static IEnumerable<string> ChangedBy(Repository repo, Commit baseCommit, Commit tip, string repositoryPath) =>
+        repo.Commits
+            .QueryBy(repositoryPath, new CommitFilter { IncludeReachableFrom = tip, ExcludeReachableFrom = baseCommit })
+            .Select(e => e.Commit.Author.Name)
+            .ToList();
 
     private abstract record PushResult
     {

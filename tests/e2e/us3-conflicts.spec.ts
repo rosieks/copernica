@@ -41,7 +41,7 @@ test.describe('US3 — concurrent edits never overwrite each other', () => {
     await expect(alice.getByRole('article')).toContainText('First section by Alice.');
 
     await editAndSave(bob, ORIGINAL.replace('Third section.', 'Third section by Bob.'), 'Bob edits third');
-    await expect(bob.getByText('combined with changes made by someone else')).toBeVisible();
+    await expect(bob.getByRole('region', { name: /Notifications/ }).getByText('Saved — merged with changes by Alice Example')).toBeVisible();
     await expect(bob.getByRole('article')).toContainText('First section by Alice.');
     await expect(bob.getByRole('article')).toContainText('Third section by Bob.');
   });
@@ -63,7 +63,7 @@ test.describe('US3 — concurrent edits never overwrite each other', () => {
 
     const resolved = ORIGINAL.replace('Second section.', 'Second section, Alice and Bob version.');
     await replaceEditorText(bob, bob.getByRole('textbox', { name: 'Resolved page content' }), resolved);
-    await bob.getByRole('button', { name: 'Save resolved version' }).click();
+    await bob.getByRole('button', { name: 'Save resolution' }).click();
 
     await expect(bob.getByRole('article')).toContainText('Alice and Bob version');
     expect(remoteFile(state().handbook, 'guides/shared.md')).toContain('Second section, Alice and Bob version.');
@@ -80,7 +80,8 @@ test.describe('US3 — concurrent edits never overwrite each other', () => {
     await editAndSave(alice, ORIGINAL.replace('Second section.', 'Alice text.'), 'Alice');
     await expect(alice.getByRole('article')).toContainText('Alice text.');
     await editAndSave(bob, ORIGINAL.replace('Second section.', 'Bob text worth keeping.'), 'Bob');
-    await bob.getByRole('button', { name: 'Discard my changes' }).click();
+    await bob.getByRole('button', { name: 'Abandon edit…' }).click();
+    await bob.getByRole('alertdialog').getByRole('button', { name: 'Abandon edit' }).click();
 
     await expect(bob.getByRole('textbox', { name: 'Your unsaved text' })).toHaveValue(/Bob text worth keeping\./);
   });

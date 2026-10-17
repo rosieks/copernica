@@ -3,7 +3,12 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { api, encodePath, type Schemas } from '../api/client';
 import { DiffView } from '../components/DiffView';
+import { absoluteTime, relativeTime, shortCommit } from '../format';
+import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { spaceRoute } from '../routes';
+import { Button, Callout, Tooltip } from '../ui';
+import { StateIndicators } from './StateIndicators';
+import './History.css';
 
 type Version = Schemas['PageVersion'];
 
@@ -12,11 +17,11 @@ interface HistoryPage {
   nextCursor: string | null;
 }
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-
-/** Page history with version selection and diff (FR-014). */
-export function History({ spaceId, path }: { spaceId: string; path: string }) {
+/** S5. Page history with From/To selection and a difference view (001 FR-014). */
+export function History({ space, path }: { space: Schemas['Space']; path: string }) {
+  const spaceId = space.id;
   const base = `/api/spaces/${encodeURIComponent(spaceId)}`;
+  useDocumentTitle(`History of ${path}`, space.displayName);
   const history = useInfiniteQuery({
     queryKey: ['history', spaceId, path],
     initialPageParam: undefined as string | undefined,
@@ -24,76 +29,127 @@ export function History({ spaceId, path }: { spaceId: string; path: string }) {
       api<HistoryPage>(`${base}/history/${encodePath(path)}${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
-  const [selected, setSelected] = useState<string[]>([]);
-
   const versions = history.data?.pages.flatMap((p) => p.items) ?? [];
-  const pair = selected.length === 2 ? orderPair(selected, versions) : undefined;
+  const [from, setFrom] = useState<string>();
+  const [to, setTo] = useState<string>();
+  const [compared, setCompared] = useState<[string, string]>();
+
+  // Defaults: compare the previous version with the latest one.
+  const fromId = from ?? versions[1]?.commitId;
+  const toId = to ?? versions[0]?.commitId;
 
   const diff = useQuery({
-    queryKey: ['diff', spaceId, path, pair?.[0], pair?.[1]],
-    enabled: !!pair,
+    queryKey: ['diff', spaceId, path, compared?.[0], compared?.[1]],
+    enabled: !!compared,
     queryFn: () =>
-      api<{ fromSource: string; toSource: string }>(
-        `${base}/diff/${encodePath(path)}?from=${pair![0]}&to=${pair![1]}`,
-      ),
+      api<{ fromSource: string; toSource: string }>(`${base}/diff/${encodePath(path)}?from=${compared![0]}&to=${compared![1]}`),
   });
 
-  function toggle(commitId: string) {
-    setSelected((prev) =>
-      prev.includes(commitId) ? prev.filter((c) => c !== commitId) : [...prev, commitId].slice(-2),
-    );
+  function compare() {
+    if (!fromId || !toId || fromId === toId) return;
+    // Older version first, whichever column the user used.
+    const order = (id: string) => versions.findIndex((v) => v.commitId === id);
+    setCompared(order(fromId) > order(toId) ? [fromId, toId] : [toId, fromId]);
   }
 
-  if (history.isPending) return <p className="status">Loading history…</p>;
-  if (history.isError) return <p className="status error">{history.error.message}</p>;
-
   return (
-    <section>
-      <h1>History of {path}</h1>
-      <p className="muted">Select two versions to compare them.</p>
-      <ul className="history-list">
-        {versions.map((v, i) => (
-          <li key={v.commitId}>
-            <input
-              type="checkbox"
-              aria-label={`Compare version from ${dateFormat.format(new Date(v.authoredAt!))} by ${v.authorName}`}
-              checked={selected.includes(v.commitId!)}
-              onChange={() => toggle(v.commitId!)}
-            />
-            <span>
-              <strong>{v.message}</strong>
-              <br />
-              <span className="muted">
-                {v.authorName} · {dateFormat.format(new Date(v.authoredAt!))}
-              </span>
-            </span>
-            {i === 0 ? (
-              <Link to={spaceRoute(spaceId, path)}>Current</Link>
-            ) : (
-              <Link to={`/s/${spaceId}/-/version/${v.commitId}/${encodePath(path)}`}>View</Link>
-            )}
-          </li>
-        ))}
-      </ul>
-      {history.hasNextPage && (
-        <button type="button" onClick={() => history.fetchNextPage()} disabled={history.isFetchingNextPage}>
-          Show older versions
-        </button>
+    <section className="stack">
+      <StateIndicators space={space} />
+      <div>
+        <h1 className="history__title">History</h1>
+        <p className="mono muted history__path">
+          <Link to={spaceRoute(spaceId, path)}>{path}</Link>
+        </p>
+      </div>
+      {history.isPending && (
+        <p className="muted" role="status">
+          Loading history…
+        </p>
       )}
-      {pair && diff.data && (
-        <section aria-label="Differences">
-          <h2>Differences</h2>
+      {history.isError && <Callout tone="danger" title="The history could not be loaded.">{history.error.message}</Callout>}
+      {history.isSuccess && (
+        <>
+          <div className="history__table-wrap">
+            <table className="history__table">
+              <caption className="visually-hidden">Versions of {path}, newest first. Choose two to compare.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">From</th>
+                  <th scope="col">To</th>
+                  <th scope="col">Version</th>
+                  <th scope="col">Author</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {versions.map((v, i) => {
+                  const when = absoluteTime(v.authoredAt!);
+                  return (
+                    <tr key={v.commitId}>
+                      <td>
+                        <input
+                          type="radio"
+                          name="from"
+                          aria-label={`Compare from the version of ${when} by ${v.authorName}`}
+                          checked={fromId === v.commitId}
+                          onChange={() => setFrom(v.commitId)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="radio"
+                          name="to"
+                          aria-label={`Compare to the version of ${when} by ${v.authorName}`}
+                          checked={toId === v.commitId}
+                          onChange={() => setTo(v.commitId)}
+                        />
+                      </td>
+                      <td className="mono">
+                        {i === 0 ? (
+                          <Link to={spaceRoute(spaceId, path)}>Current</Link>
+                        ) : (
+                          <Link
+                            to={`/s/${spaceId}/-/version/${v.commitId}/${encodePath(path)}`}
+                            aria-label={`${shortCommit(v.commitId!)}, version of ${when} by ${v.authorName}`}
+                          >
+                            {shortCommit(v.commitId!)}
+                          </Link>
+                        )}
+                      </td>
+                      <td>{v.authorName}</td>
+                      <td>
+                        <Tooltip content={when}>
+                          <time dateTime={v.authoredAt} tabIndex={0}>
+                            {relativeTime(v.authoredAt!)}
+                          </time>
+                        </Tooltip>
+                      </td>
+                      <td className="history__message">{v.message}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="row">
+            <Button variant="primary" onClick={compare} disabled={!fromId || !toId || fromId === toId}>
+              Compare selected
+            </Button>
+            {history.hasNextPage && (
+              <Button onClick={() => history.fetchNextPage()} disabled={history.isFetchingNextPage}>
+                Load more
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+      {compared && diff.data && (
+        <section aria-labelledby="differences-title" className="stack">
+          <h2 id="differences-title">Differences</h2>
           <DiffView from={diff.data.fromSource} to={diff.data.toSource} label="Differences between the selected versions" />
         </section>
       )}
     </section>
   );
-}
-
-function orderPair(selected: string[], versions: Version[]): [string, string] {
-  const [a = '', b = ''] = selected;
-  const ia = versions.findIndex((v) => v.commitId === a);
-  const ib = versions.findIndex((v) => v.commitId === b);
-  // Newest first in the list: the higher index is the older version.
-  return ia > ib ? [a, b] : [b, a];
 }

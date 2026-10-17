@@ -1,0 +1,62 @@
+.space-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.space-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+
+.space-card:hover:not(.space-card--disabled) {
+  border-color: var(--color-accent-border);
+  background: var(--color-bg-subtle);
+}
+
+.space-card__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.space-card__link {
+  text-decoration: none;
+}
+
+/* The whole card is clickable; the link stays the single focus stop. */
+.space-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.space-card__link:focus-visible {
+  box-shadow: none;
+}
+
+.space-card__link:focus-visible::after {
+  box-shadow: var(--focus-ring);
+}
+
+.space-card--disabled .space-card__title {
+  color: var(--color-text-muted);
+}
+
+.space-card__message {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

@@ -49,8 +49,8 @@ test.describe('US4 — discuss specific fragments of a page', () => {
 
     await selectText(alice, 'onboarding new colleagues');
     await alice.getByRole('button', { name: 'Comment on selection' }).click();
-    await alice.getByLabel('Comment').fill('Do we have a checklist for this?');
-    await alice.getByRole('button', { name: 'Start discussion' }).click();
+    await alice.getByLabel('Comment', { exact: true }).fill('Do we have a checklist for this?');
+    await alice.getByRole('form', { name: 'New discussion' }).getByRole('button', { name: 'Comment', exact: true }).click();
     const thread = alice.getByRole('article', { name: /Discussion about “onboarding new colleagues”/ });
     await expect(thread).toContainText('Do we have a checklist for this?');
     expect(await alice.evaluate(() => CSS.highlights.has('discussion') || CSS.highlights.has('discussion-active'))).toBe(true);
@@ -65,18 +65,19 @@ test.describe('US4 — discuss specific fragments of a page', () => {
     const comments = thread.locator('.comment');
     await expect(comments).toHaveCount(2);
     await expect(comments.nth(1)).toContainText('Bob Example');
-    await comments.nth(0).getByRole('button', { name: 'Edit' }).click();
+    await comments.nth(0).getByRole('button', { name: 'Comment actions' }).click();
+    await alice.getByRole('menuitem', { name: 'Edit' }).click();
     await alice.getByLabel('Edit comment').fill('Do we have an onboarding checklist?');
     await alice.getByRole('button', { name: 'Save' }).click();
     await expect(comments.nth(0)).toContainText('edited');
-    await expect(comments.nth(1).getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expect(comments.nth(1).getByRole('button', { name: 'Comment actions' })).toHaveCount(0);
 
     await thread.getByRole('button', { name: 'Resolve' }).click();
     await expect(thread).toHaveCount(0);
-    await alice.getByLabel('Show discussions').selectOption('resolved');
+    await alice.getByRole('radiogroup', { name: 'Show discussions' }).getByRole('radio', { name: 'Resolved' }).click();
     await expect(thread).toContainText('Resolved by Alice Example');
     await thread.getByRole('button', { name: 'Reopen' }).click();
-    await alice.getByLabel('Show discussions').selectOption('open');
+    await alice.getByRole('radiogroup', { name: 'Show discussions' }).getByRole('radio', { name: 'Open' }).click();
     await expect(thread).toBeVisible();
   });
 
@@ -85,8 +86,8 @@ test.describe('US4 — discuss specific fragments of a page', () => {
     await openIndex(page);
     await selectText(page, 'the release process');
     await page.getByRole('button', { name: 'Comment on selection' }).click();
-    await page.getByLabel('Comment').fill('Link the release checklist here.');
-    await page.getByRole('button', { name: 'Start discussion' }).click();
+    await page.getByLabel('Comment', { exact: true }).fill('Link the release checklist here.');
+    await page.getByRole('form', { name: 'New discussion' }).getByRole('button', { name: 'Comment', exact: true }).click();
     const thread = page.getByRole('article', { name: /Discussion about “the release process”/ });
     await expect(thread).toBeVisible();
 
@@ -103,7 +104,7 @@ test.describe('US4 — discuss specific fragments of a page', () => {
       await page.reload();
       await expect(thread).toContainText('Outdated', { timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
-    await expect(thread.locator('.discussion-quote')).toHaveText('the release process');
+    await expect(thread.locator('.discussion__quote')).toHaveText('the release process');
   });
 
   test('A14: discussion text never reaches the repository', async () => {

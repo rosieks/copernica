@@ -1,0 +1,28 @@
+.signin {
+  display: grid;
+  place-items: start center;
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-bg-subtle);
+}
+
+.signin__card {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-popover);
+}
+
+.signin__card h1 {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+
+.signin__card .muted {
+  margin: 0 0 var(--space-2);
+}

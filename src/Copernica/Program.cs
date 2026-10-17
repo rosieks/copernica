@@ -47,6 +47,7 @@ builder.Logging.AddJsonConsole();
 builder.Services.AddOptions<CopernicaOptions>().Bind(builder.Configuration.GetSection(CopernicaOptions.Section)).ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<CopernicaOptions>, CopernicaOptionsValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.TryAddSingleton(_ => new SpaAssets(SpaHosting.CreateFileProvider()));
 builder.Services.AddMemoryCache();
 builder.Services.AddProblemDetails();
 builder.Services.AddCopernicaDatabase();
@@ -117,7 +118,7 @@ app.Use(async (context, next) =>
     }
 });
 app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseSpa(SpaHosting.CreateFileProvider());
+app.UseSpa(app.Services.GetRequiredService<SpaAssets>().Files);
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCopernicaAntiforgery();

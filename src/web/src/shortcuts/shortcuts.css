@@ -1,0 +1,24 @@
+.shortcuts__group {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shortcuts__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.shortcuts__row {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.shortcuts__row dd {
+  margin: 0;
+}

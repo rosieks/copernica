@@ -1,0 +1,27 @@
+.ui-tooltip {
+  z-index: 60;
+  max-width: 20rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-tooltip-bg);
+  color: var(--color-tooltip-text);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  box-shadow: var(--shadow-popover);
+  animation: ui-fade-in var(--duration-fast) ease-out;
+}
+
+.ui-tooltip kbd {
+  border-color: var(--color-tooltip-border);
+  background: transparent;
+  color: inherit;
+}
+
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
