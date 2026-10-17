@@ -1,0 +1,537 @@
+openapi: 3.1.0
+info:
+  title: Copernica HTTP API
+  version: 0.1.0
+  description: |
+    API between the Copernica web UI and server (same origin). All endpoints require an
+    authenticated session cookie unless noted. State-changing requests require the
+    antiforgery header `X-XSRF-TOKEN`.
+
+    Authorization: every space-scoped endpoint checks the caller's RepositoryPermission
+    (see data-model.md). A space the caller cannot read responds `404` (not `403`) so its
+    existence is not disclosed.
+
+    Errors use RFC 9457 problem details (`application/problem+json`) with a stable `type`
+    (`urn:copernica:problem:<suffix>`); the suffix is listed per endpoint. Any endpoint may
+    answer `401` with `reauthentication-required` when the user's delegated access to the git
+    hosting platform expired, and saves may answer `403` with `pat-required` on Azure DevOps
+    Server when no personal access token is registered.
+servers:
+  - url: /api
+paths:
+  /me:
+    get:
+      summary: Current user
+      responses:
+        '200':
+          description: Signed-in user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /me/tokens/azure-devops:
+    get:
+      summary: Whether the caller registered a personal access token (Azure DevOps Server)
+      responses:
+        '200':
+          description: Registration state; the token itself is never returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  registered: { type: boolean }
+                  updatedAt: { type: [string, 'null'], format: date-time }
+    put:
+      summary: Register or replace the caller's personal access token (stored encrypted)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, minLength: 1, maxLength: 1024 }
+      responses:
+        '204': { description: Stored }
+        '400': { description: Invalid token format }
+    delete:
+      summary: Remove the caller's personal access token
+      responses:
+        '204': { description: Removed }
+
+  /spaces:
+    get:
+      summary: Spaces the caller can read (FR-009b)
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Space' }
+
+  /spaces/{spaceId}/tree:
+    get:
+      summary: Page tree at the space's current head
+      parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
+      responses:
+        '200':
+          description: Tree
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TreeNode' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /spaces/{spaceId}/pages/{path}:
+    parameters:
+      - { $ref: '#/components/parameters/SpaceId' }
+      - { $ref: '#/components/parameters/PagePath' }
+    get:
+      summary: Rendered page (optionally at a past version)
+      parameters:
+        - name: version
+          in: query
+          description: Commit id; default is the current head
+          schema: { type: string }
+        - name: source
+          in: query
+          description: Also return Markdown source (for the editor)
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Page' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Create or update a page (FR-010..FR-017)
+      description: |
+        `base` is the PageVersion the edit started from; omit it to create a new page
+        (fails with `page-exists` if the path exists). The server merges non-overlapping
+        concurrent changes automatically (`merged: true` in the response).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavePageRequest' }
+      responses:
+        '200':
+          description: Saved and accepted by the hosting platform
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveResult' }
+        '403':
+          description: |
+            `type` = `no-write-permission` | `push-rejected` (e.g. branch policy; `detail`
+            carries the platform's reason)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: |
+            `type` = `edit-conflict` (body is EditConflict) | `page-exists`
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/EditConflict' }
+        '503':
+          description: '`type` = `space-unavailable` | `hosting-unavailable`'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    delete:
+      summary: Delete a page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [base, message]
+              properties:
+                base: { $ref: '#/components/schemas/PageVersionRef' }
+                message: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '204': { description: Deleted }
+        '403': { description: As for PUT }
+        '409': { description: '`edit-conflict` — page changed since `base`' }
+
+  /spaces/{spaceId}/history/{path}:
+    get:
+      summary: Page history (FR-014)
+      parameters:
+        - { $ref: '#/components/parameters/SpaceId' }
+        - { $ref: '#/components/parameters/PagePath' }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: Versions, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PageVersion' }
+                  nextCursor: { type: [string, 'null'] }
+
+  /spaces/{spaceId}/diff/{path}:
+    get:
+      summary: Difference between two versions of a page
+      parameters:
+        - { $ref: '#/components/parameters/SpaceId' }
+        - { $ref: '#/components/parameters/PagePath' }
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Both sources; the UI computes the visual diff
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fromSource: { type: string }
+                  toSource: { type: string }
+
+  /spaces/{spaceId}/files/{path}:
+    get:
+      summary: Raw repository file referenced by a page (images, attachments)
+      description: |
+        Images are served inline with their image content type; everything else as
+        `application/octet-stream` with `Content-Disposition: attachment`. SVG is served
+        with `Content-Security-Policy: sandbox`. Always `X-Content-Type-Options: nosniff`.
+      parameters:
+        - { $ref: '#/components/parameters/SpaceId' }
+        - { name: path, in: path, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: string } }
+      responses:
+        '200': { description: File content }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /render:
+    post:
+      summary: Render Markdown for the editor preview (same pipeline as pages)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [spaceId, path, markdown]
+              properties:
+                spaceId: { type: string }
+                path: { type: string }
+                markdown: { type: string, maxLength: 1048576 }
+      responses:
+        '200':
+          description: Sanitized HTML
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  html: { type: string }
+
+  /spaces/{spaceId}/discussions:
+    parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
+    get:
+      summary: Discussions of a page (FR-021, US4 scenario 8)
+      parameters:
+        - { name: path, in: query, required: true, schema: { type: string } }
+        - name: state
+          in: query
+          schema: { type: string, enum: [open, resolved, all], default: open }
+      responses:
+        '200':
+          description: Discussions with comments, anchors re-computed for the current head
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Discussion' }
+    post:
+      summary: Start a discussion on a fragment (FR-018)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, anchor, body]
+              properties:
+                path: { type: string }
+                anchor: { $ref: '#/components/schemas/TextAnchorInput' }
+                body: { type: string, minLength: 1, maxLength: 10000 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+        '422': { description: '`type` = `anchor-not-found` — selection does not match the page at `commitId`' }
+
+  /discussions/{discussionId}/comments:
+    post:
+      summary: Reply (FR-019)
+      parameters: [ { $ref: '#/components/parameters/DiscussionId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 10000 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+
+  /discussions/{discussionId}/comments/{commentId}:
+    parameters:
+      - { $ref: '#/components/parameters/DiscussionId' }
+      - { name: commentId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      summary: Edit own comment (FR-020)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 10000 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '403': { description: '`type` = `not-comment-author`' }
+    delete:
+      summary: Delete own comment (FR-020)
+      responses:
+        '204': { description: Deleted }
+        '403': { description: '`type` = `not-comment-author`' }
+
+  /discussions/{discussionId}/state:
+    put:
+      summary: Resolve or reopen (FR-021)
+      parameters: [ { $ref: '#/components/parameters/DiscussionId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state]
+              properties:
+                state: { type: string, enum: [open, resolved] }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+
+  /health/live:
+    get:
+      summary: Liveness (no auth)
+      security: []
+      responses: { '200': { description: Process is running } }
+  /health/ready:
+    get:
+      summary: Readiness (no auth) — database open and configuration loaded
+      security: []
+      responses:
+        '200': { description: Ready }
+        '503': { description: Not ready }
+
+components:
+  parameters:
+    SpaceId:
+      name: spaceId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}$' }
+    PagePath:
+      name: path
+      in: path
+      required: true
+      description: Space-relative path ending in `.md` (URL-encoded segments)
+      schema: { type: string }
+    DiscussionId:
+      name: discussionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthenticated:
+      description: Not signed in
+    NotFound:
+      description: Not found or not readable by the caller
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+
+    User:
+      type: object
+      required: [id, displayName]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        email: { type: [string, 'null'] }
+        azureDevOpsPat:
+          type: object
+          description: Only on GET /me — whether a personal access token is required and registered
+          properties:
+            required: { type: boolean }
+            registered: { type: boolean }
+
+    Space:
+      type: object
+      required: [id, displayName, state, canWrite]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        state: { type: string, enum: [initializing, ready, outOfSync, unavailable] }
+        lastSyncAt: { type: [string, 'null'], format: date-time }
+        message: { type: [string, 'null'], description: Reason shown when not ready }
+        canWrite: { type: boolean }
+
+    TreeNode:
+      type: object
+      required: [name, path, kind]
+      properties:
+        name: { type: string }
+        path: { type: string }
+        title: { type: [string, 'null'] }
+        kind: { type: string, enum: [folder, page] }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/TreeNode' }
+
+    PageVersionRef:
+      type: object
+      required: [commitId]
+      properties:
+        commitId: { type: string, description: Branch head when the page was loaded }
+        blobId: { type: [string, 'null'], description: File blob at that commit }
+
+    Page:
+      type: object
+      required: [spaceId, path, title, html, version]
+      properties:
+        spaceId: { type: string }
+        path: { type: string }
+        title: { type: string }
+        html: { type: string, description: Sanitized HTML }
+        source: { type: [string, 'null'] }
+        version: { $ref: '#/components/schemas/PageVersionRef' }
+        isCurrent: { type: boolean }
+        tooLarge: { type: boolean }
+
+    SavePageRequest:
+      type: object
+      required: [markdown, message]
+      properties:
+        base: { $ref: '#/components/schemas/PageVersionRef' }
+        markdown: { type: string, maxLength: 1048576 }
+        message: { type: string, minLength: 1, maxLength: 500 }
+
+    SaveResult:
+      type: object
+      required: [version, merged]
+      properties:
+        version: { $ref: '#/components/schemas/PageVersionRef' }
+        merged:
+          type: boolean
+          description: True if non-overlapping concurrent changes were combined
+
+    EditConflict:
+      allOf:
+        - { $ref: '#/components/schemas/Problem' }
+        - type: object
+          required: [baseSource, theirsSource, theirsVersion, mineSource]
+          properties:
+            baseSource: { type: string }
+            theirsSource: { type: string }
+            theirsVersion: { $ref: '#/components/schemas/PageVersionRef' }
+            theirsAuthors:
+              type: array
+              items: { type: string }
+            mineSource: { type: string }
+
+    PageVersion:
+      type: object
+      properties:
+        commitId: { type: string }
+        authorName: { type: string }
+        authorEmail: { type: string }
+        authoredAt: { type: string, format: date-time }
+        message: { type: string }
+
+    TextAnchorInput:
+      type: object
+      required: [exact, prefix, suffix, start, end, commitId]
+      properties:
+        exact: { type: string, minLength: 1, maxLength: 2000 }
+        prefix: { type: string, maxLength: 32 }
+        suffix: { type: string, maxLength: 32 }
+        start: { type: integer, minimum: 0 }
+        end: { type: integer, minimum: 1 }
+        commitId: { type: string }
+
+    Discussion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        path: { type: string }
+        state: { type: string, enum: [open, resolved] }
+        anchorStatus: { type: string, enum: [anchored, outdated] }
+        anchor:
+          type: object
+          properties:
+            exact: { type: string }
+            start: { type: integer }
+            end: { type: integer }
+            commitId: { type: string }
+            originalExact: { type: string }
+        createdAt: { type: string, format: date-time }
+        resolvedBy: { type: ['null', object], properties: { id: { type: string }, displayName: { type: string } } }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        comments:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/User' }
+        html: { type: [string, 'null'], description: Sanitized; null if deleted }
+        body: { type: [string, 'null'], description: Markdown; only returned to the author }
+        createdAt: { type: string, format: date-time }
+        editedAt: { type: [string, 'null'], format: date-time }
+        deleted: { type: boolean }
