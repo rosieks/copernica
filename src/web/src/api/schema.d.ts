@@ -374,6 +374,8 @@ export interface paths {
                 query?: {
                     cursor?: string;
                     limit?: number;
+                    /** @description Commit id to start the history walk from (inclusive); defaults to the branch head. Must be reachable from the space branch, otherwise 404. Malformed ids give 400. Added by 002 (contracts/api-changes.md §1). */
+                    version?: string;
                 };
                 header?: never;
                 path: {
@@ -936,6 +938,8 @@ export interface components {
             version: components["schemas"]["PageVersionRef"];
             /** @description True if non-overlapping concurrent changes were combined */
             merged: boolean;
+            /** @description Distinct author names, oldest first, of the commits that changed this page between the edit's base and the branch tip it was merged with. Empty when no change to this page was merged (also when only other pages changed). Added by 002 (contracts/api-changes.md §2). */
+            mergedAuthors: string[];
         };
         EditConflict: components["schemas"]["Problem"] & {
             baseSource: string;

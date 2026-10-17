@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { ChevronDownIcon, ChevronRightIcon, FileTextIcon } from '@radix-ui/react-icons';
 import type { Schemas } from '../api/client';
+import './PageTree.css';
 
 type TreeNode = Schemas['TreeNode'];
 
@@ -116,15 +118,17 @@ export function PageTree({ spaceId, root, currentPath }: { spaceId: string; root
             aria-selected={isCurrent}
             aria-current={isCurrent ? 'page' : undefined}
             tabIndex={node.path === focusKey ? 0 : -1}
-            className={`tree-item level-${Math.min(level, 8)} ${isFolder ? 'folder' : 'page'} ${isCurrent ? 'current' : ''}`}
+            className={`tree-item level-${Math.min(level, 8)}${isCurrent ? ' tree-item--current' : ''}`}
             onClick={() => {
               setFocused(node.path);
               activate(node);
             }}
             onKeyDown={(event) => onKeyDown(event, item, index)}
           >
-            {isFolder && <span aria-hidden="true" className="tree-toggle">{expanded.has(node.path) ? '▾' : '▸'}</span>}
-            {node.title ?? node.name}
+            <span aria-hidden="true" className="tree-item__icon">
+              {isFolder ? expanded.has(node.path) ? <ChevronDownIcon /> : <ChevronRightIcon /> : <FileTextIcon />}
+            </span>
+            <span className="tree-item__label">{node.title ?? node.name}</span>
           </li>
         );
       })}

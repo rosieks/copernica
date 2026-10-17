@@ -1,0 +1,49 @@
+.page-tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tree-item {
+  --indent: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2) var(--space-1) calc(var(--space-2) + var(--indent) * var(--space-4));
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.tree-item--current {
+  border-left-color: var(--color-accent-solid);
+  background: var(--color-accent-subtle);
+  font-weight: var(--weight-medium);
+}
+
+.tree-item__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+/* Long names wrap instead of pushing the layout (edge case: long titles). */
+.tree-item__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.level-2 { --indent: 1; }
+.level-3 { --indent: 2; }
+.level-4 { --indent: 3; }
+.level-5 { --indent: 4; }
+.level-6 { --indent: 5; }
+.level-7 { --indent: 6; }
+.level-8 { --indent: 7; }

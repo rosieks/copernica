@@ -1,0 +1,74 @@
+.ui-callout {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+
+.ui-callout--info {
+  background: var(--color-info-subtle);
+  border-color: var(--color-info-border);
+}
+
+.ui-callout--warning {
+  background: var(--color-warning-subtle);
+  border-color: var(--color-warning-border);
+}
+
+.ui-callout--danger {
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger-border);
+}
+
+.ui-callout--success {
+  background: var(--color-success-subtle);
+  border-color: var(--color-success-border);
+}
+
+.ui-callout__icon {
+  display: inline-flex;
+  padding-top: 2px;
+}
+
+.ui-callout--info .ui-callout__icon {
+  color: var(--color-accent-text);
+}
+
+.ui-callout--warning .ui-callout__icon {
+  color: var(--color-warning-text);
+}
+
+.ui-callout--danger .ui-callout__icon {
+  color: var(--color-danger-text);
+}
+
+.ui-callout--success .ui-callout__icon {
+  color: var(--color-success-text);
+}
+
+.ui-callout__body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-callout__title {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
+.ui-callout__text p {
+  margin: var(--space-1) 0 0;
+}
+
+.ui-callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}

@@ -77,8 +77,18 @@ hosting platform.
   - Comments go through the same pipeline.
 - **Response headers:**
   - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`.
-    `style-src-attr` is needed by the code editor for positioning. It allows style
-    *attributes* only, and user content never contains them.
+    `style-src-attr` is needed by the code editor and by positioned menus and popovers.
+    It allows style *attributes* only, and user content never contains them.
+  - The HTML page that loads the web UI (the SPA shell: `/`, `/s/...`, `/profile`, …)
+    is the one exception: its `style-src` also allows `'nonce-<random>'`. The nonce is a
+    fresh 128-bit random value on every response, and it also appears in the page's
+    `<meta name="csp-nonce">`. The UI component library (Radix) uses it only for the
+    `<style>` element that locks page scrolling while a dialog is open. `script-src
+    'self'` and every other directive are unchanged. API, asset and health responses keep
+    the static policy above. Rendered user content is sanitized and cannot carry a
+    `<style>` element or a nonce.
+  - The automated accessibility checker used by the end-to-end tests is test-only tooling
+    and is never shipped.
   - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`.
 - **Repository files:**
   - Images are served inline. SVG gets `Content-Security-Policy: sandbox`.

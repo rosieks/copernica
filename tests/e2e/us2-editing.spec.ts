@@ -33,8 +33,12 @@ test.describe('US2 — edit and create pages with attributed history', () => {
     await expect(page.getByRole('treeitem', { name: 'Created In E2E' })).toBeVisible();
     expect(remoteFile(state().handbook, 'guides/created-in-e2e.md')).toContain('Hello.');
 
-    await page.getByRole('button', { name: 'Delete' }).click();
-    await page.getByRole('button', { name: 'Delete page' }).click();
+    await page.getByRole('button', { name: 'More page actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete page…' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete page' }).click();
+    // While the dialog is open the page behind it is inert (hidden from roles); wait for it to close.
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/s\/handbook\/[^/]+\.md$/);
     await expect(page.getByRole('treeitem', { name: 'Created In E2E' })).toHaveCount(0);
     expect(remoteLog(state().handbook, 'guides/created-in-e2e.md').map((c) => c.message)).toEqual([
       'Delete guides/created-in-e2e.md',
@@ -46,16 +50,16 @@ test.describe('US2 — edit and create pages with attributed history', () => {
     await signIn(page);
     await page.goto('/s/handbook/guides/setup.md');
     await page.getByRole('link', { name: 'History' }).click();
-    const items = page.getByRole('listitem');
-    await expect(items.first()).toContainText('Fix typo');
-    await expect(items.first()).toContainText('Alice Example');
+    // Data rows, newest first (row 0 is the header).
+    const latest = page.getByRole('row').nth(1);
+    await expect(latest).toContainText('Fix typo');
+    await expect(latest).toContainText('Alice Example');
 
-    const boxes = page.getByRole('checkbox');
-    await boxes.nth(0).check();
-    await boxes.nth(1).check();
+    // From/To default to the previous and the latest version.
+    await page.getByRole('button', { name: 'Compare selected' }).click();
     await expect(page.getByRole('region', { name: 'Differences' })).toContainText('fix the typo');
 
-    await page.getByRole('link', { name: 'View' }).first().click();
-    await expect(page.getByText('You are viewing an older version.')).toBeVisible();
+    await page.getByRole('link', { name: /, version of / }).first().click();
+    await expect(page.getByText(/You are viewing an older version/)).toBeVisible();
   });
 });

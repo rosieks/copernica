@@ -1,0 +1,138 @@
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-element);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.ui-badge--info {
+  background: var(--color-info-subtle);
+  border-color: var(--color-info-border);
+}
+
+.ui-badge--warning {
+  background: var(--color-warning-subtle);
+  border-color: var(--color-warning-border);
+}
+
+.ui-badge--danger {
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger-border);
+}
+
+.ui-badge--success {
+  background: var(--color-success-subtle);
+  border-color: var(--color-success-border);
+}
+
+.ui-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.ui-avatar::before {
+  content: attr(data-initials);
+}
+
+.ui-avatar--slate {
+  background: var(--color-avatar-slate);
+}
+
+.ui-avatar--amber {
+  background: var(--color-avatar-amber);
+}
+
+.ui-avatar--green {
+  background: var(--color-avatar-green);
+}
+
+.ui-avatar--red {
+  background: var(--color-avatar-red);
+}
+
+.ui-empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.ui-empty__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.ui-empty__description {
+  margin: var(--space-2) auto 0;
+  max-width: 40ch;
+  color: var(--color-text-muted);
+}
+
+.ui-empty__action {
+  margin-top: var(--space-4);
+}
+
+.ui-skeleton {
+  display: block;
+  height: 1em;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-element);
+  animation: ui-pulse 1.4s ease-in-out infinite;
+}
+
+.ui-skeleton--short {
+  width: 8rem;
+}
+
+.ui-skeleton--medium {
+  width: 20rem;
+  max-width: 100%;
+}
+
+.ui-skeleton--full {
+  width: 100%;
+}
+
+.ui-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent-solid);
+  border-radius: var(--radius-full);
+  animation: ui-spin 0.8s linear infinite;
+}
+
+@keyframes ui-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton,
+  .ui-spinner {
+    animation: none;
+  }
+}

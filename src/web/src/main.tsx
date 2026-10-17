@@ -3,9 +3,16 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
-import { SaveNoticeProvider } from './components/SaveNotice';
 import { isUnauthenticated } from './api/client';
-import './styles.css';
+import { applyNonce, startTheme } from './theme';
+import { ToastProvider, TooltipProvider } from './ui';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/prose.css';
+import './styles/layout.css';
+
+applyNonce();
+startTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,9 +27,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <SaveNoticeProvider>
-          <App />
-        </SaveNoticeProvider>
+        <TooltipProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

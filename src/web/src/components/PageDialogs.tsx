@@ -1,23 +1,24 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api/client';
 import { pageApi } from '../routes';
-
-function useDialog(open: boolean) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-  return ref;
-}
+import { AlertDialog, Button, Callout, Dialog, Field, useToast } from '../ui';
 
 /** Asks for the path of a new page and opens the editor for it. */
-export function NewPageDialog({ spaceId, folder, open, onClose }: { spaceId: string; folder?: string; open: boolean; onClose: () => void }) {
-  const ref = useDialog(open);
+export function NewPageDialog({
+  spaceId,
+  folder,
+  open,
+  onClose,
+  returnFocusTo,
+}: {
+  spaceId: string;
+  folder?: string;
+  open: boolean;
+  onClose: () => void;
+  returnFocusTo?: RefObject<HTMLElement | null>;
+}) {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [error, setError] = useState<string>();
@@ -33,63 +34,67 @@ export function NewPageDialog({ spaceId, folder, open, onClose }: { spaceId: str
     }
     onClose();
     setName('');
+    setError(undefined);
     navigate(`/s/${spaceId}/-/new/${path.split('/').map(encodeURIComponent).join('/')}`);
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="new-page-title">
-      <form onSubmit={submit} className="form">
-        <h2 id="new-page-title">New page</h2>
-        <label>
-          Page name {folder ? `(in ${folder}/)` : ''}
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. guides/onboarding" />
-        </label>
-        {error && (
-          <p role="alert" className="error">
-            {error}
-          </p>
-        )}
-        <div className="dialog-actions">
-          <button type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="primary">
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()} title="New page" returnFocusTo={returnFocusTo}>
+      <form className="stack" onSubmit={submit} id="new-page-form">
+        <Field
+          label={folder ? `Page name (in ${folder}/)` : 'Page name'}
+          hint="Use “/” to create the page in a folder."
+          error={error}
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. guides/onboarding"
+        />
+        <div className="row row--end">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary">
             Create
-          </button>
+          </Button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }
 
-/** Confirms deletion; the page stays available in history. */
+/** Confirms deletion; the page stays available in history (FR-003). */
 export function DeletePageDialog({
   spaceId,
   path,
   version,
   open,
   onClose,
+  returnFocusTo,
 }: {
   spaceId: string;
   path: string;
   version: { commitId: string; blobId?: string | null };
   open: boolean;
   onClose: () => void;
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }) {
-  const ref = useDialog(open);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const [message, setMessage] = useState(`Delete ${path}`);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  async function confirm() {
+    if (!message.trim()) {
+      setError('Describe your change.');
+      throw new Error('missing description');
+    }
     setBusy(true);
     setError(undefined);
     try {
       await api(pageApi(spaceId, path), { method: 'DELETE', json: { base: version, message } });
       await queryClient.invalidateQueries({ queryKey: ['tree', spaceId] });
+      notify({ tone: 'success', title: 'Page deleted', description: 'It stays available in the repository history.' });
       onClose();
       navigate(`/s/${spaceId}/`);
     } catch (e) {
@@ -100,35 +105,25 @@ export function DeletePageDialog({
             ? [e.problem.title, e.problem.detail].filter(Boolean).join(' ')
             : 'The page could not be deleted.',
       );
+      throw e;
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="delete-page-title">
-      <form onSubmit={submit} className="form">
-        <h2 id="delete-page-title">Delete {path}?</h2>
-        <p>The page will be removed from the wiki. It stays available in the repository history.</p>
-        <label>
-          Change description
-          <input value={message} maxLength={500} onChange={(e) => setMessage(e.target.value)} required />
-        </label>
-        {error && (
-          <p role="alert" className="error">
-            {error}
-          </p>
-        )}
-        <div className="dialog-actions">
-          <button type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="primary" disabled={busy}>
-            Delete page
-          </button>
-        </div>
-      </form>
-    </dialog>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => !next && onClose()}
+      title={`Delete ${path}?`}
+      description="The page will be removed from the wiki. It stays available in the repository history."
+      confirmLabel="Delete page"
+      busy={busy}
+      onConfirm={confirm}
+      returnFocusTo={returnFocusTo}
+    >
+      <Field label="Change description" value={message} maxLength={500} onChange={(e) => setMessage(e.target.value)} required />
+      {error && <Callout tone="danger" title={error} />}
+    </AlertDialog>
   );
 }
-

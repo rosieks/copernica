@@ -1,0 +1,29 @@
+.ui-toggle-group {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-element);
+}
+
+.ui-toggle-group__item {
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.ui-toggle-group__item:hover {
+  color: var(--color-text);
+}
+
+.ui-toggle-group__item[data-state='on'] {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+  box-shadow: 0 0 0 1px var(--color-border-subtle);
+}

@@ -2,29 +2,37 @@ import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { api, ApiError } from '../api/client';
+import { useDocumentTitle } from '../layout/RouteAnnouncer';
+import { Button, Callout, Field } from '../ui';
+import './SignIn.css';
 
 function safeReturnUrl(value: string | null): string {
   // Only same-origin paths; never an absolute URL (open redirect).
   return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
 }
 
+/** S1: sign-in card. */
 export function SignIn() {
   const [params] = useSearchParams();
   const returnUrl = safeReturnUrl(params.get('returnUrl'));
   const config = useQuery({ queryKey: ['auth-config'], queryFn: () => api<{ mode: string | null }>('/auth/config') });
-
-  if (config.isPending) return <p className="status">Loading…</p>;
+  useDocumentTitle('Sign in');
 
   return (
-    <main className="signin">
-      <h1>Sign in to Copernica</h1>
-      {config.data?.mode === 'Local' ? (
-        <LocalSignIn returnUrl={returnUrl} />
-      ) : (
-        <a className="button primary" href={`/auth/challenge?returnUrl=${encodeURIComponent(returnUrl)}`}>
-          Sign in with your organization account
-        </a>
-      )}
+    <main id="main" className="signin">
+      <div className="signin__card">
+        <h1>Sign in to Copernica</h1>
+        <p className="muted">The team wiki for the documentation in your repositories.</p>
+        {config.isPending ? (
+          <p role="status">Loading…</p>
+        ) : config.data?.mode === 'Local' ? (
+          <LocalSignIn returnUrl={returnUrl} />
+        ) : (
+          <Button asChild variant="primary">
+            <a href={`/auth/challenge?returnUrl=${encodeURIComponent(returnUrl)}`}>Sign in with your organization account</a>
+          </Button>
+        )}
+      </div>
     </main>
   );
 }
@@ -51,29 +59,20 @@ function LocalSignIn({ returnUrl }: { returnUrl: string }) {
   }
 
   return (
-    <form className="form" onSubmit={submit}>
-      <label>
-        User name
-        <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-      </label>
-      <label>
-        Password
-        <input
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </label>
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      <button type="submit" className="button primary" disabled={busy}>
+    <form className="stack" onSubmit={submit}>
+      <Field label="User name" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+      <Field
+        label="Password"
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+      {error && <Callout tone="danger" title={error} />}
+      <Button type="submit" variant="primary" disabled={busy}>
         Sign in
-      </button>
+      </Button>
     </form>
   );
 }

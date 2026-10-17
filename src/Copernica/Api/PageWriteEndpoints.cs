@@ -94,7 +94,7 @@ public static class PageWriteEndpoints
     }
 
     private static async Task<IResult> HistoryAsync(
-        string spaceId, string path, string? cursor, int? limit, HttpContext context, PermissionService permissions, PageService pages, HistoryService history)
+        string spaceId, string path, string? cursor, int? limit, string? version, HttpContext context, PermissionService permissions, PageService pages, HistoryService history)
     {
         var access = await permissions.RequireReadAsync(context, spaceId);
         if (access.Problem is not null)
@@ -111,6 +111,20 @@ public static class PageWriteEndpoints
         if (head is null)
         {
             return SpacesEndpoints.SpaceUnavailable(access.Space!);
+        }
+
+        // Optional start commit (002 api-changes.md §1): history as of an older version.
+        if (!string.IsNullOrEmpty(version))
+        {
+            switch (history.CheckStart(access.Space!, head, version))
+            {
+                case HistoryStart.Malformed:
+                    return ProblemTypes.BadRequest("The version must be a full commit id.");
+                case HistoryStart.NotFound:
+                    return ProblemTypes.NotFound();
+            }
+
+            head = version;
         }
 
         var result = history.GetHistory(access.Space!, head, normalized, cursor, limit);
@@ -155,7 +169,7 @@ public static class PageWriteEndpoints
     }
 }
 
-public sealed record SaveResult(PageVersionRef Version, bool Merged);
+public sealed record SaveResult(PageVersionRef Version, bool Merged, IReadOnlyList<string> MergedAuthors);
 
 /// <summary>Maps <see cref="PageWriter"/> outcomes to HTTP results.</summary>
 public sealed class PageWriteService(
@@ -197,7 +211,7 @@ public sealed class PageWriteService(
         {
             case SaveOutcome.Saved saved:
                 await synchronizer.MarkHeadAsync(space, saved.Version.CommitId, cancellationToken);
-                return TypedResults.Ok(new SaveResult(saved.Version, saved.Merged));
+                return TypedResults.Ok(new SaveResult(saved.Version, saved.Merged, saved.MergedAuthors));
             case SaveOutcome.Conflict conflict:
                 return Results.Problem(
                     title: "The page was changed by someone else.",

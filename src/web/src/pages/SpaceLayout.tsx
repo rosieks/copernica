@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useLocation, useParams } from 'react-router';
+import { PlusIcon } from '@radix-ui/react-icons';
 import { api, type Schemas } from '../api/client';
 import { PageTree } from '../components/PageTree';
 import { SpaceStateBadge } from '../components/SpaceStateBadge';
 import { NewPageDialog } from '../components/PageDialogs';
+import { useShell } from '../layout/ShellContext';
+import { useDocumentTitle } from '../layout/RouteAnnouncer';
+import { MEDIUM, useMediaQuery, WIDE } from '../layout/useMediaQuery';
+import { spaceRoute } from '../routes';
+import { Button, Callout, EmptyState, Sheet } from '../ui';
 import { useSpaces } from './SpaceList';
 import { PageView } from './PageView';
 import { PageEdit } from './PageEdit';
 import { History } from './History';
-import { DiscussionPanel } from '../discussions/DiscussionPanel';
-import { spaceRoute } from '../routes';
+import { StateIndicators } from './StateIndicators';
 
 const HOME_CANDIDATES = ['index.md', 'README.md', 'readme.md', 'Home.md', 'home.md'];
 
@@ -61,21 +66,42 @@ export function useTree(spaceId: string) {
   });
 }
 
-/** `/s/:spaceId/...` — tree on the left, the selected view on the right. */
+/** `/s/:spaceId/...`: tree | view | discussions, collapsing into sheets on narrow screens (R5). */
 export function SpaceLayout() {
   const { spaceId = '' } = useParams();
   const location = useLocation();
   const spaces = useSpaces();
   const tree = useTree(spaceId);
+  const shell = useShell();
+  const medium = useMediaQuery(MEDIUM);
+  const wide = useMediaQuery(WIDE);
   const [creating, setCreating] = useState(false);
+  const [asideNode, setAsideNode] = useState<HTMLElement | null>(null);
+  const newPageButton = useRef<HTMLButtonElement>(null);
 
   const prefix = `/s/${spaceId}/`;
   const view = parseView(location.pathname.startsWith(prefix) ? location.pathname.slice(prefix.length) : '');
   const space = spaces.data?.find((s) => s.id === spaceId);
   const canWrite = space?.canWrite ?? false;
+  const currentPath = view.kind === 'home' ? undefined : view.path;
+  const withAside = view.kind === 'page' && wide;
+
+  const { setHasNav, setNavOpen } = shell;
+  useEffect(() => {
+    setHasNav(true);
+    return () => setHasNav(false);
+  }, [setHasNav]);
+  // Navigating closes the navigation sheet.
+  useEffect(() => setNavOpen(false), [location.pathname, setNavOpen]);
+  useDocumentTitle(view.kind === 'home' ? space?.displayName : undefined);
 
   if (spaces.isSuccess && !space) {
-    return <p className="status">This space does not exist or you do not have access to it.</p>;
+    return (
+      <main id="main" className="main page-section">
+        <h1>Space not available</h1>
+        <EmptyState title="This space does not exist or you do not have access to it." action={<Link to="/">Go to the space list</Link>} />
+      </main>
+    );
   }
 
   if (view.kind === 'home' && tree.isSuccess) {
@@ -84,60 +110,80 @@ export function SpaceLayout() {
     if (home) return <Navigate to={spaceRoute(spaceId, home)} replace />;
   }
 
-  const currentPath = view.kind === 'home' ? undefined : view.path;
-
-  return (
-    <div className="space-layout">
-      <nav className="sidebar" aria-label="Space navigation">
-        <h2 className="sidebar-title">
+  const navigation = (
+    <>
+      <div className="space-nav__head">
+        <h2 className="space-nav__title">
           <Link to={`/s/${spaceId}/`}>{space?.displayName ?? spaceId}</Link>
         </h2>
         {space && space.state !== 'ready' && <SpaceStateBadge space={space} />}
-        {canWrite && (
-          <p>
-            <button type="button" onClick={() => setCreating(true)}>
-              New page
-            </button>
+      </div>
+      {canWrite && (
+        <Button ref={newPageButton} size="sm" icon={<PlusIcon />} onClick={() => setCreating(true)} className="space-nav__new">
+          New page
+        </Button>
+      )}
+      {tree.isPending && (
+        <p className="muted" role="status">
+          Loading pages…
+        </p>
+      )}
+      {tree.isError && <Callout tone="danger" title="The page tree could not be loaded." />}
+      {tree.isSuccess && <PageTree spaceId={spaceId} root={tree.data} currentPath={currentPath} />}
+    </>
+  );
+
+  return (
+    <div className={`space-grid${withAside ? ' space-grid--with-aside' : ''}`}>
+      {medium ? (
+        <nav className="space-grid__nav" aria-label="Space navigation">
+          {navigation}
+        </nav>
+      ) : (
+        <Sheet open={shell.navOpen} onOpenChange={setNavOpen} title="Space navigation" side="left" returnFocusTo={shell.navTrigger}>
+          <nav aria-label="Space navigation">{navigation}</nav>
+        </Sheet>
+      )}
+      <main id="main" className="main">
+        {!space && (
+          <p className="status" role="status">
+            Loading…
           </p>
         )}
-        {tree.isPending && <p className="status">Loading pages…</p>}
-        {tree.isError && <p className="status error">{tree.error.message}</p>}
-        {tree.isSuccess && <PageTree spaceId={spaceId} root={tree.data} currentPath={currentPath} />}
-      </nav>
-      <div className="content">
-        {space && space.state !== 'ready' && space.message && (
-          <div role="status" className="banner warning">
-            {space.message}
-          </div>
+        {space && view.kind === 'page' && <PageView space={space} path={view.path} asideNode={asideNode} />}
+        {space && view.kind === 'version' && <PageView space={space} path={view.path} version={view.version} asideNode={null} />}
+        {space && view.kind === 'edit' && (canWrite ? <PageEdit key={view.path} space={space} path={view.path} /> : <ReadOnly space={space} />)}
+        {space && view.kind === 'new' && (canWrite ? <PageEdit key={`new:${view.path}`} space={space} path={view.path} isNew /> : <ReadOnly space={space} />)}
+        {space && view.kind === 'history' && <History space={space} path={view.path} />}
+        {space && view.kind === 'home' && tree.isSuccess && (
+          <>
+            <StateIndicators space={space} />
+            <h1>{space.displayName}</h1>
+            <EmptyState
+              title="This space has no pages yet."
+              description={canWrite ? 'Use “New page” to create the first one.' : undefined}
+            />
+          </>
         )}
-        {view.kind === 'page' && (
-          <PageView
-            spaceId={spaceId}
-            path={view.path}
-            canWrite={canWrite}
-            aside={(page, article) => (
-              <DiscussionPanel key={page.version.commitId} spaceId={spaceId} path={view.path} page={page} article={article} />
-            )}
-          />
-        )}
-        {view.kind === 'version' && <PageView spaceId={spaceId} path={view.path} version={view.version} canWrite={false} />}
-        {view.kind === 'edit' && (canWrite ? <PageEdit key={view.path} spaceId={spaceId} path={view.path} /> : <ReadOnly />)}
-        {view.kind === 'new' && (canWrite ? <PageEdit key={`new:${view.path}`} spaceId={spaceId} path={view.path} isNew /> : <ReadOnly />)}
-        {view.kind === 'history' && <History spaceId={spaceId} path={view.path} />}
-        {view.kind === 'home' && tree.isSuccess && (
-          <p className="status">This space has no pages yet.{canWrite && ' Use “New page” to create the first one.'}</p>
-        )}
-      </div>
+      </main>
+      {withAside && <aside className="space-grid__aside" aria-label="Discussions" ref={setAsideNode} />}
       <NewPageDialog
         spaceId={spaceId}
         folder={currentPath?.includes('/') ? currentPath.split('/').slice(0, -1).join('/') : undefined}
         open={creating}
         onClose={() => setCreating(false)}
+        returnFocusTo={newPageButton}
       />
     </div>
   );
 }
 
-function ReadOnly() {
-  return <p className="status">You do not have permission to change this space.</p>;
+function ReadOnly({ space }: { space: Schemas['Space'] }) {
+  return (
+    <>
+      <StateIndicators space={space} />
+      <h1>Read only</h1>
+      <p>You do not have permission to change this space.</p>
+    </>
+  );
 }

@@ -1,0 +1,60 @@
+.page-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.page-edit__title {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.page-edit__path {
+  margin: var(--space-1) 0 0;
+}
+
+.page-edit__split[data-state='active'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* Both columns as tall as the taller one, so their frames end at the same line. */
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.preview-pane {
+  /* Grows with its content like the editor, so the page has a single scrollbar. */
+  min-height: 50vh;
+  overflow-x: auto;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.editor-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-3) var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg);
+}
+
+.editor-footer__message {
+  flex: 1 1 16rem;
+}
+
+.editor-footer__actions {
+  flex: none;
+}
+
+/* The preview fills its box; the reading-width cap applies to the page view only. */
+.prose.preview-pane {
+  max-width: none;
+}
