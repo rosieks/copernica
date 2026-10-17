@@ -22,13 +22,15 @@ organization and avoids mixed-language specs that drift apart.
   multi-user instance that a team deploys on infrastructure it already controls: a VM, a
   server, Docker/Compose, or a Kubernetes cluster. Running it on a single workstation
   (for evaluation or development) MUST also work.
-- The wiki MUST NOT depend on external SaaS, public cloud APIs, public CDNs or third-party
-  accounts. Every service it talks to MUST be one the organization runs itself.
-- The application MUST NOT make outbound connections to the internet by default: no
-  telemetry, analytics, update checks, remote fonts/scripts or license servers. Optional
-  integrations (e.g. the organization's own identity provider, or synchronization with the
-  organization's own git server such as GitLab, Gitea or Bitbucket) MUST be off by default
-  and enabled explicitly via configuration.
+- The wiki MUST NOT introduce new external services: no SaaS of its own, public CDNs or
+  third-party accounts. It MAY talk only to services the organization already uses and
+  controls access to—its git hosting platform and its identity provider—whether
+  self-hosted (e.g. Azure DevOps Server, GitLab, Gitea) or the organization's own cloud
+  tenant (e.g. Azure DevOps Services with Microsoft Entra ID).
+- The application MUST NOT make any other outbound connections: no telemetry, analytics,
+  update checks, remote fonts/scripts or license servers. Integrations with the git
+  hosting platform and identity provider MUST be off by default, enabled explicitly via
+  configuration, and limited to the endpoints the deployer configures.
 - All runtime assets (JS, CSS, fonts, icons) MUST be bundled with the application.
 - A minimal instance MUST start with a single documented command (binary or
   `docker run`) and no additional infrastructure (no external database server, message
@@ -37,7 +39,9 @@ organization and avoids mixed-language specs that drift apart.
   chart) that deploy a working instance with persistent storage.
 
 **Rationale**: The value is a team wiki that any team can stand up inside the organization
-on whatever platform it already uses, without waiting for external services to be approved.
+on whatever platform it already uses, without waiting for new external services to be
+approved. Talking to the git hosting and identity services the organization already
+trusts with its code adds no new party that could see its data.
 
 ### III. Low-Friction Adoption by Design (NON-NEGOTIABLE)
 
@@ -49,8 +53,13 @@ never by hiding or circumventing controls:
 - **Authentication**: when the service is reachable by anyone other than the local user,
   write access MUST require authentication. Supported modes: built-in local accounts,
   identity headers from the organization's reverse proxy / auth gateway, and optionally
-  OIDC against the organization's own identity provider. Anonymous read access MUST be
-  off by default.
+  OIDC against the organization's identity provider (including the one used by its git
+  hosting platform). Anonymous read access MUST be off by default.
+- **Delegated access**: when the wiki acts on a user's behalf against the git hosting
+  platform, it MUST request the minimum scopes needed, use the user's tokens only for
+  that user's requests, keep them server-side only (never exposed to the browser),
+  encrypt any persisted tokens at rest, and MUST NOT grant access the platform would
+  deny the user.
 - **Network exposure**: the standalone binary MUST bind to `127.0.0.1` by default. The
   container image MAY listen on all interfaces inside the container; exposure outside the
   cluster is controlled by the deployer (Service/Ingress), never opened by the app itself.
@@ -59,7 +68,7 @@ never by hiding or circumventing controls:
   volume, and MUST be compatible with the Kubernetes Pod Security Standard `restricted`
   and a read-only root filesystem.
 - **Data residency**: all data stays in the configured data directory / volume and in the
-  organization's own git servers (see Principles II and V).
+  organization's git hosting platform (see Principles II and V).
 - **Safe content**: user-authored content MUST be rendered safely (HTML sanitization, no
   execution of embedded scripts, safe handling of uploads—executable uploads blocked or
   served as attachments only).
@@ -193,4 +202,4 @@ is added, which reinforces Principles II and III.
 - Every plan and PR review MUST verify compliance with the Core Principles; deviations MUST
   be documented and justified in the plan's Complexity Tracking section or rejected.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-17
+**Version**: 1.2.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-17
