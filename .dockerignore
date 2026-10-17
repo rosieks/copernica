@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/node_modules/
+src/web/dist/
+.git/
+.vs/
+.vscode/
+.idea/
+data/
+tests/e2e/
+playwright-report/
+test-results/
+Dockerfile*
+.dockerignore
+*.log*
+.env*
+coverage/

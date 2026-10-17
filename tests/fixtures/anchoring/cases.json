@@ -1,0 +1,7 @@
+[
+  { "name": "paragraphs", "html": "<h1 id=\"title\">Title</h1>\n<p>First <strong>bold</strong> text.</p>\n<p>Second &amp; last.</p>\n" },
+  { "name": "list-and-code", "html": "<ul>\n<li>One</li>\n<li>Two <code>x &lt; y</code></li>\n</ul>\n<pre><code>line 1\nline 2\n</code></pre>\n" },
+  { "name": "table", "html": "<table>\n<thead>\n<tr>\n<th>a</th>\n<th>b</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>2</td>\n</tr>\n</tbody>\n</table>\n" },
+  { "name": "unicode", "html": "<p>Zażółć gęślą jaźń — 🚀 emoji and non breaking space.</p>\n" },
+  { "name": "task-list", "html": "<ul class=\"contains-task-list\">\n<li class=\"task-list-item\"><input disabled=\"disabled\" type=\"checkbox\"> todo</li>\n</ul>\n" }
+]

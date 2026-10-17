@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            src/web/package-lock.json
+            tests/e2e/package-lock.json
+
+      - name: Web — install, type-check, unit tests, build
+        working-directory: src/web
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
+
+      - name: .NET — restore (locked), build, test
+        run: |
+          dotnet restore Copernica.slnx --locked-mode
+          dotnet build Copernica.slnx --no-restore
+          dotnet test --solution Copernica.slnx --no-build
+
+      - name: License check (Constitution IV)
+        shell: pwsh
+        run: ./scripts/check-licenses.ps1 -NoNotices
+
+  e2e:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build web UI and server
+        run: |
+          npm --prefix src/web ci
+          npm --prefix src/web run build
+          dotnet build src/Copernica
+      # One browser per job: every run gets its own server and repositories (tests share state).
+      - name: End-to-end tests (${{ matrix.browser }})
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps ${{ matrix.browser }}
+          npx playwright test --project=${{ matrix.browser }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-${{ matrix.browser }}
+          path: tests/e2e/test-results
+
+  publish-smoke-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish single-file executable and smoke-test it
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Runtime ${{ matrix.rid }}
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: copernica:ci

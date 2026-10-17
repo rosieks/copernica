@@ -1,0 +1,23 @@
+# Local evaluation: docker compose -f deploy/compose.yaml up --build
+# Create a password hash first: echo secret | docker run -i --rm copernica hash-password
+services:
+  copernica:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    volumes:
+      - copernica-data:/data
+    environment:
+      Copernica__Auth__Mode: Local
+      Copernica__Auth__Local__Users__0__Name: admin
+      Copernica__Auth__Local__Users__0__PasswordHash: ${COPERNICA_ADMIN_HASH:?set COPERNICA_ADMIN_HASH}
+      Copernica__Spaces__0__Id: sandbox
+      Copernica__Spaces__0__DisplayName: Sandbox
+volumes:
+  copernica-data:

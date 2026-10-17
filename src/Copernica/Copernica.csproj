@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Copernica</RootNamespace>
+    <AssemblyName>copernica</AssemblyName>
+    <UserSecretsId Condition="false" />
+    <RuntimeIdentifiers>linux-x64;linux-arm64;linux-musl-x64;win-x64;osx-arm64</RuntimeIdentifiers>
+    <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+    <WebProjectDir>$(MSBuildProjectDirectory)/../web</WebProjectDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibGit2Sharp" />
+    <PackageReference Include="Markdig" />
+    <PackageReference Include="HtmlSanitizer" />
+    <PackageReference Include="Microsoft.Identity.Web" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Copernica.Tests" />
+    <InternalsVisibleTo Include="Copernica.IntegrationTests" />
+  </ItemGroup>
+
+  <!-- Frontend build (T007): Release builds run npm unless SkipWebBuild=true. -->
+  <Target Name="BuildWeb" BeforeTargets="BeforeBuild"
+          Condition="'$(Configuration)' == 'Release' And '$(SkipWebBuild)' != 'true'">
+    <Exec Command="npm ci" WorkingDirectory="$(WebProjectDir)" />
+    <Exec Command="npm run build" WorkingDirectory="$(WebProjectDir)" />
+  </Target>
+
+  <Target Name="EmbedWeb" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <_WebDistFile Include="$(WebProjectDir)/dist/**/*" />
+      <EmbeddedResource Include="@(_WebDistFile)" LogicalName="wwwroot/%(_WebDistFile.RecursiveDir)%(_WebDistFile.Filename)%(_WebDistFile.Extension)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Copernica/Copernica.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Copernica.Tests/Copernica.Tests.csproj" />
+    <Project Path="tests/Copernica.IntegrationTests/Copernica.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
