@@ -81,11 +81,18 @@ short.
   (why it is needed, why the standard library is insufficient).
 - Dependencies MUST use permissive, organization-friendly licenses (e.g. MIT, BSD,
   Apache-2.0, ISC). Copyleft licenses (GPL/AGPL) MUST NOT be introduced into the
-  distributed artifact without an amendment.
-- Dependency versions MUST be pinned via a lockfile committed to the repository.
+  distributed artifact without an amendment. Libraries under GPL with an explicit linking
+  exception (e.g. libgit2) MAY be used unmodified as dynamically linked libraries; each
+  such use MUST be listed in `SECURITY.md` / third-party notices.
+- This rule applies to everything shipped in the artifact: NuGet runtime packages and the
+  npm packages bundled into the browser code. Build-only tooling (bundlers, linters, test
+  frameworks) MUST also be pinned and permissively licensed, but is not shipped and does
+  not require per-feature justification.
+- Dependency versions MUST be pinned via committed lockfiles (`packages.lock.json` for
+  NuGet, the npm lockfile for the frontend).
 - The application and its container image MUST be buildable from vendored or internally
   mirrored packages and base images (offline / air-gapped build support). The container
-  base image MUST be minimal (distroless, Alpine or equivalent).
+  base image MUST be minimal (chiseled, distroless, Alpine or equivalent).
 
 **Rationale**: Fewer, well-known dependencies keep the supply-chain surface small and make
 internal license and vulnerability scanning trivial.
@@ -135,6 +142,30 @@ is added, which reinforces Principles II and III.
   modes, container security context, and how to report vulnerabilities.
 - The standalone binary MUST run on Windows, macOS and Linux without elevated privileges;
   the container image MUST support linux/amd64 and linux/arm64.
+- The application MUST send a strict Content Security Policy: `script-src 'self'`, no
+  inline scripts, no `eval`, no third-party origins.
+- Markdown MUST be rendered to HTML and sanitized on the server, in one place. The
+  frontend MUST NOT render raw user HTML from any other source; editor previews use the
+  same server-side renderer.
+
+## Technology Stack
+
+- **Backend**: C# on the current .NET LTS release with ASP.NET Core. Published as a
+  self-contained, single-file executable per platform (Native AOT MAY be used where the
+  chosen libraries support it).
+- **Frontend**: React with TypeScript (strict mode), built with Vite. Production assets
+  MUST be embedded in / served by the .NET application; no separate frontend server and no
+  CDN at runtime.
+- **Storage**: git repositories for content (via a .NET git library or the `git` CLI—the
+  choice is made and justified in the plan); SQLite (`Microsoft.Data.Sqlite`) for
+  non-content data.
+- **Container**: based on the official .NET `runtime-deps` chiseled (or equivalent minimal,
+  non-root) image.
+- **Browser support**: the two latest versions of Chrome, Edge, Firefox and Safari.
+- **Accessibility**: the UI MUST meet WCAG 2.1 AA.
+- Replacing any of the above (language, runtime, UI framework, storage engine) requires an
+  amendment to this constitution. Libraries within the stack are chosen per feature in the
+  plan, subject to Principle IV.
 
 ## Development Workflow and Quality Gates
 
@@ -162,4 +193,4 @@ is added, which reinforces Principles II and III.
 - Every plan and PR review MUST verify compliance with the Core Principles; deviations MUST
   be documented and justified in the plan's Complexity Tracking section or rejected.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-17
+**Version**: 1.1.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-17
