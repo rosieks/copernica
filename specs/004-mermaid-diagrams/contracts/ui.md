@@ -9,7 +9,7 @@ Extends the page view (S3), version view and editor preview (S4) of
 | State | Shown | Source `<pre>` |
 |-------|-------|----------------|
 | **Loading** | A `Skeleton` box with a fixed height (8 rem) and the text "Drawing diagram…" (muted, `role="status"` once per page, not per diagram) | Hidden |
-| **Drawn** | The image at its natural width, centred; a small toolbar above it, aligned right: `Button size="sm" variant="ghost"` **"Show diagram source"** | Hidden (still in the DOM for anchoring) |
+| **Drawn** | The image at its natural width, scaled down to the column when wider, centred; a small toolbar above it, aligned right: `Button size="sm" variant="ghost"` **"Show full size"** / **"Fit to width"** (only while the image is wider than the column) and **"Show diagram source"** | Hidden (still in the DOM for anchoring) |
 | **Showing source** | The source `<pre>` (styled like other code blocks); the toolbar button reads **"Show diagram"** (`aria-expanded="true"`) | Visible |
 | **Error** | A warning `Callout`: "This diagram could not be drawn." plus the renderer's message in muted text | Visible |
 | **Too large** | A warning `Callout`: "This diagram is too large to draw (over 20 000 characters)." | Visible |
@@ -22,9 +22,13 @@ as a compact list with `--text-sm`.
 
 - The figure has `margin: var(--space-5) 0`, `overflow-x: auto` and `max-width: 100%`, so
   only the diagram scrolls horizontally (FR-011, 002 FR-009).
-- The image has `max-width: none; height: auto`, with its width from the SVG and a light
+- The image has `max-width: 100%; height: auto`, with its width from the SVG and a light
   `--color-image-card` background only in the error and loading states.
-- It sits in `.prose`, so the page reading width applies. Wider diagrams scroll.
+- It sits in `.prose`, so the page reading width applies. Wider diagrams are scaled to fit.
+- **"Show full size"** adds `diagram--full-size` to the figure, which sets the image to
+  `max-width: none`; the figure then scrolls. The button then reads **"Fit to width"** and
+  keeps focus. It is shown only while the image's natural width exceeds the figure's width
+  (checked on load and on resize) and hidden while the source is shown.
 
 ## Theme
 

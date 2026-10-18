@@ -5,6 +5,40 @@ import { MAX_ERROR_LENGTH, MAX_SOURCE_LENGTH, isRenderRequest, type RenderError,
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
+// Step 7 of Radix blue, orange, green, violet, amber, crimson, cyan, brown, indigo, grass, plum
+// and teal (@radix-ui/colors). Neighbours differ in hue, and the theme's text colour reads on
+// every one of them, so pie slices, git branches and other series stay apart in both themes.
+const SERIES_LIGHT = ['#8ec8f6', '#f5ae73', '#8eceaa', '#c2b5f5', '#e9c162', '#eaacc3', '#7dcedc', '#dcbc9f', '#abbdf9', '#94ce9a', '#deade3', '#83cdc1'];
+const SERIES_DARK = ['#205d9e', '#7e451d', '#28684a', '#56468b', '#714f19', '#873356', '#12677e', '#614a39', '#3a4f97', '#366740', '#734079', '#1c6961'];
+
+/** Without these, Mermaid derives every series colour from `primaryColor` and they look alike. */
+function seriesVariables(theme: ThemeTokens): Record<string, string> {
+  const series = theme.dark ? SERIES_DARK : SERIES_LIGHT;
+  const variables: Record<string, string> = {
+    pieOpacity: '1',
+    pieStrokeWidth: '1px',
+    pieOuterStrokeWidth: '1px',
+  };
+  series.forEach((colour, i) => {
+    variables[`pie${i + 1}`] = colour;
+    variables[`cScale${i}`] = colour;
+    if (i < 8) variables[`git${i}`] = colour;
+  });
+  const text = HEX.test(theme.text) ? theme.text : undefined;
+  if (text) {
+    series.forEach((_, i) => {
+      variables[`cScaleLabel${i}`] = text;
+      if (i < 8) variables[`gitBranchLabel${i}`] = text;
+    });
+    variables.pieSectionTextColor = text;
+    variables.pieTitleTextColor = text;
+    variables.pieLegendTextColor = text;
+  }
+  if (HEX.test(theme.background)) variables.pieStrokeColor = theme.background;
+  if (HEX.test(theme.border)) variables.pieOuterStrokeColor = theme.border;
+  return variables;
+}
+
 function themeVariables(theme: ThemeTokens): Record<string, string | boolean> {
   const colours: Record<string, string> = {
     background: theme.background,
@@ -21,7 +55,7 @@ function themeVariables(theme: ThemeTokens): Record<string, string | boolean> {
     noteBorderColor: theme.border,
   };
   // Mermaid derives shades from these and fails on colours it cannot parse; leave those to the theme.
-  const variables: Record<string, string | boolean> = { darkMode: theme.dark };
+  const variables: Record<string, string | boolean> = { darkMode: theme.dark, ...seriesVariables(theme) };
   for (const [name, value] of Object.entries(colours)) {
     if (HEX.test(value)) variables[name] = value;
   }
@@ -35,6 +69,8 @@ function configure(theme: ThemeTokens) {
     securityLevel: 'strict',
     htmlLabels: false,
     flowchart: { htmlLabels: false },
+    // Full dates overlap on the axis of a few weeks' plan; a diagram's own `axisFormat` still wins.
+    gantt: { axisFormat: '%b %d' },
     maxTextSize: MAX_SOURCE_LENGTH,
     maxEdges: 500,
     // Diagrams cannot change these through %%{init: …}%% directives.
