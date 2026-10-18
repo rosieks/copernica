@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useDiagrams } from '../diagrams/useDiagrams';
 import type { EditorView } from '@codemirror/view';
 import { ImageIcon } from '@radix-ui/react-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -65,6 +66,16 @@ function usePreview(spaceId: string, path: string, markdown: string, enabled: bo
     queryFn: () => api<{ html: string }>('/api/render', { method: 'POST', json: { spaceId, path, markdown: debounced, attachments } }),
     placeholderData: (previous) => previous,
   });
+}
+
+/**
+ * The server-rendered, sanitized preview. Diagrams are drawn as on the page (004 US2); unchanged
+ * ones come from the renderer cache, and no status is announced on every keystroke.
+ */
+function PreviewPane({ as: Element, html }: { as: 'div' | 'section'; html: string }) {
+  const pane = useRef<HTMLElement>(null);
+  useDiagrams(pane, html);
+  return <Element ref={pane as RefObject<HTMLDivElement>} className="preview-pane prose" aria-label="Preview" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** S4. Markdown editor with preview; save outcomes per contracts/ui.md (FR-006–FR-008). */
@@ -323,7 +334,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
             />
         </Tabs.Panel>
         <Tabs.Panel value="preview">
-          <div className="preview-pane prose" aria-label="Preview" dangerouslySetInnerHTML={{ __html: preview.data?.html ?? '' }} />
+          <PreviewPane as="div" html={preview.data?.html ?? ''} />
         </Tabs.Panel>
         {wide && (
           <Tabs.Panel value="split" className="page-edit__split">
@@ -334,7 +345,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
               onFiles={images.onFiles}
               editorRef={editorRef}
             />
-            <section className="preview-pane prose" aria-label="Preview" dangerouslySetInnerHTML={{ __html: preview.data?.html ?? '' }} />
+            <PreviewPane as="section" html={preview.data?.html ?? ''} />
           </Tabs.Panel>
         )}
       </Tabs.Root>

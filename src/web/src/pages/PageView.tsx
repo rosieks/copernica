@@ -10,6 +10,7 @@ import { HighlightMarkers } from '../discussions/HighlightMarkers';
 import { SelectionPopover, useArticleSelection } from '../discussions/SelectionPopover';
 import { rangesForOffsets, type TextAnchorInput } from '../discussions/textAnchor';
 import { highlightTargets, useDiscussions } from '../discussions/useDiscussions';
+import { useDiagrams } from '../diagrams/useDiagrams';
 import { useHighlights } from '../discussions/useHighlights';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { MEDIUM, useMediaQuery, WIDE } from '../layout/useMediaQuery';
@@ -91,6 +92,8 @@ export function PageView({ space, path, version, asideNode }: Props) {
   );
 
   useHighlights(article, targets, activeId, activateFromPage);
+  // Diagram figures in the sanitized HTML are drawn as images (004); the text never waits for them.
+  const diagramStatus = useDiagrams(article, data?.html);
 
   const comment = useCallback(
     (anchor: TextAnchorInput) => {
@@ -267,6 +270,9 @@ export function PageView({ space, path, version, asideNode }: Props) {
             // Server-rendered and sanitized (Constitution: server-side Markdown rendering).
             dangerouslySetInnerHTML={{ __html: loaded.html }}
           />
+          <p className="visually-hidden" role="status" aria-live="polite">
+            {diagramStatus}
+          </p>
           {withDiscussions && <HighlightMarkers article={article} targets={targets} activeId={activeId} onActivate={activateFromPage} />}
         </div>
       )}

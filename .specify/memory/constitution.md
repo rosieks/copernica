@@ -156,6 +156,18 @@ is added, which reinforces Principles II and III.
 - Markdown MUST be rendered to HTML and sanitized on the server, in one place. The
   frontend MUST NOT render raw user HTML from any other source; editor previews use the
   same server-side renderer.
+- Diagram blocks written as text (e.g. Mermaid) MAY be drawn in the browser, but only
+  when all of the following hold:
+  - the server still emits them as escaped source inside its sanitized markup;
+  - drawing happens in an isolated renderer: a sandboxed frame with an opaque origin
+    (never `allow-same-origin`), no network access and its own restrictive Content
+    Security Policy;
+  - the result is shown in the application's document only as an image (e.g. an SVG
+    `data:` image), never parsed into it as markup.
+
+  Any other client-side rendering of user content remains forbidden. The isolated
+  renderer's own policy MAY allow inline styles; it MUST NOT allow `eval`, inline
+  scripts, network connections or third-party origins.
 
 ## Technology Stack
 
@@ -202,4 +214,4 @@ is added, which reinforces Principles II and III.
 - Every plan and PR review MUST verify compliance with the Core Principles; deviations MUST
   be documented and justified in the plan's Complexity Tracking section or rejected.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-17
+**Version**: 1.3.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-18

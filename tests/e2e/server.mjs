@@ -53,6 +53,31 @@ const handbook = createRemote('handbook', {
     'x'.repeat(300) +
     '\n```\n',
   'guides/huge.md': '# Huge\n\n' + 'Lorem ipsum dolor sit amet. '.repeat(9000) + '\n',
+  // 004 fixtures (specs/004-mermaid-diagrams/quickstart.md, Setup).
+  'visuals/all-types.md': '# All diagram types\n\nThis text comes before the diagrams.\n\n' + [
+    'flowchart LR\n  accTitle: Order flow\n  accDescr: From cart to delivery\n  A[Cart] --> B[Payment] --> C[Delivery]\n  click A "../guides/setup.md" "Setup"',
+    'sequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Hi',
+    'classDiagram\n  class Order {\n    +id: string\n  }\n  Order --> Customer',
+    'stateDiagram-v2\n  [*] --> Draft\n  Draft --> Published\n  Published --> [*]',
+    'erDiagram\n  CUSTOMER ||--o{ ORDER : places',
+    'gantt\n  title Release plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Code :a1, 2026-01-01, 5d\n  Test :after a1, 3d',
+    'pie title Pets\n  "Dogs" : 3\n  "Cats" : 2',
+    'gitGraph\n  commit\n  branch feature\n  commit\n  checkout main\n  merge feature',
+  ].map((source) => '```mermaid\n' + source + '\n```\n').join('\n') + '\nThis sentence follows the diagrams.\n',
+  'visuals/ado.md': '# Azure DevOps diagram\n\n::: mermaid\nflowchart LR\n  A[Cart] --> B[Payment]\n:::\n',
+  'visuals/broken.md': '# Broken\n\n```mermaid\nflowchart LR\n  A --> --> B ((\n```\n\n```mermaid\nflowchart LR\n  C --> D\n```\n\nThe rest of the page is normal.\n',
+  'visuals/huge.md': '# Huge diagram\n\n```mermaid\nflowchart TD\n' +
+    Array.from({ length: 1300 }, (_, i) => `  N${i}[Node ${i}] --> N${i + 1}\n`).join('') + '```\n',
+  'visuals/wide.md': '# Wide diagram\n\n```mermaid\nflowchart LR\n  ' +
+    Array.from({ length: 40 }, (_, i) => `W${i}[Step number ${i}]`).join(' --> ') + '\n```\n',
+  'visuals/evil.md': '# Hostile diagrams\n\n' + [
+    'flowchart LR\n  A["<script>window.__xss = true</script>"] --> B',
+    'flowchart LR\n  A --> B\n  click A call alert(1)',
+    'flowchart LR\n  A --> B\n  click B "javascript:window.__xss = true"',
+    '%%{init: {"securityLevel": "loose", "htmlLabels": true}}%%\nflowchart LR\n  A["<img src=x onerror=window.__xss=true>"] --> B',
+    'flowchart LR\n  A["<img src=\'https://example.com/x.png\'>"] --> B',
+    'flowchart LR\n  A --> B\n  classDef ext font-family:url(https://example.com/f)\n  class A ext',
+  ].map((source) => '```mermaid\n' + source + '\n```\n').join('\n'),
 });
 
 // 002 fixture: a page with three commits by different authors (page information, history).

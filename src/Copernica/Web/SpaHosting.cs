@@ -30,6 +30,22 @@ public static class SpaHosting
             ContentTypeProvider = ContentTypes,
             OnPrepareResponse = context =>
             {
+                if (context.Context.Request.Path.Equals(SecurityHeadersMiddleware.RendererPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    // The isolated diagram renderer has its own, separate policy.
+                    context.Context.Response.Headers.ContentSecurityPolicy = SecurityHeadersMiddleware.RendererPolicy;
+                }
+
+                // The sandboxed renderer has an opaque origin ("null"), so its module scripts are
+                // cross-origin CORS requests. Every asset response allows them: the wiki page and the
+                // renderer share chunks, and an immutable cached copy without the header would block
+                // the renderer. Bundle assets are public, content-hashed and sent without credentials,
+                // so this exposes nothing new.
+                if (context.Context.Request.Path.StartsWithSegments("/assets"))
+                {
+                    context.Context.Response.Headers.AccessControlAllowOrigin = "*";
+                }
+
                 // Vite emits content-hashed names under /assets.
                 context.Context.Response.Headers.CacheControl = context.Context.Request.Path.StartsWithSegments("/assets")
                     ? "public, max-age=31536000, immutable"

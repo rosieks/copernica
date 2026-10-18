@@ -45,6 +45,18 @@ public sealed class WikiLinkRewriter(
     {
     }
 
+    /// <summary>Same rules as a text link; targets that escape the space are rejected.</summary>
+    public string? ResolveUrl(string target)
+    {
+        var (url, broken) = Resolve(target, isImage: false);
+        return url switch
+        {
+            null => broken ? null : target,
+            "" => null,
+            _ => url,
+        };
+    }
+
     internal (string? Url, bool Broken) Resolve(string target, bool isImage)
     {
         if (target.StartsWith(WikiScheme, StringComparison.OrdinalIgnoreCase))

@@ -110,7 +110,7 @@ public sealed class PageService(
     {
         var head = GetHead(space) ?? "";
         var pages = head.Length == 0 ? new HashSet<string>() : trees.GetPagePaths(space, head);
-        return renderer.Render(markdown, new WikiLinkRewriter(space.Id, path, head, pages.Contains, pendingImages));
+        return renderer.Render(markdown, new WikiLinkRewriter(space.Id, path, head, pages.Contains, pendingImages), diagrams: true);
     }
 
     private string Render(Space space, string path, string commitId, string blobId, string content) =>
@@ -118,7 +118,7 @@ public sealed class PageService(
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(10);
             var pages = trees.GetPagePaths(space, commitId);
-            return renderer.Render(content, new WikiLinkRewriter(space.Id, path, commitId, pages.Contains));
+            return renderer.Render(content, new WikiLinkRewriter(space.Id, path, commitId, pages.Contains), diagrams: true);
         })!;
 
     /// <summary>Only full hexadecimal object ids are accepted as versions (no revision expressions).</summary>

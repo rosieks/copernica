@@ -60,11 +60,18 @@ foreach ($package in $packages) {
 
 # --- npm (bundled into the browser) ------------------------------------------------------------
 $web = Join-Path $root 'src/web'
+# npm packages whose manifest has no single SPDX id we allow; license verified by hand (004 research R7).
+$knownNpmLicenses = @{
+    'dompurify' = 'Apache-2.0 (dual MPL-2.0 OR Apache-2.0; used under Apache-2.0)'
+    'khroma'    = 'MIT (LICENSE file; no license field in package.json)'
+}
+
 $paths = npm --prefix $web ls --omit=dev --all --parseable 2>$null | Select-Object -Skip 1
 foreach ($path in ($paths | Sort-Object -Unique)) {
     $manifest = Get-Content (Join-Path $path 'package.json') -Raw | ConvertFrom-Json
     $license = if ($manifest.license -is [string]) { $manifest.license } else { $manifest.license.type }
-    if ($allowed -notcontains $license) { $failures.Add("npm $($manifest.name) $($manifest.version) : $license") }
+    if ($knownNpmLicenses.ContainsKey($manifest.name)) { $license = $knownNpmLicenses[$manifest.name] }
+    elseif ($allowed -notcontains $license) { $failures.Add("npm $($manifest.name) $($manifest.version) : $license") }
     $results.Add([pscustomobject]@{ Ecosystem = 'npm'; Name = $manifest.name; Version = $manifest.version; License = $license ?? 'UNKNOWN' })
 }
 

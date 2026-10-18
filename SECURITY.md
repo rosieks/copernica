@@ -90,7 +90,8 @@ hosting platform.
     `<style>` element or a nonce.
   - The automated accessibility checker used by the end-to-end tests is test-only tooling
     and is never shipped.
-  - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`.
+  - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`
+    (`SAMEORIGIN` for the diagram renderer page only; see [Diagrams](#diagrams)).
 - **Repository files:**
   - Images are served inline. SVG gets `Content-Security-Policy: sandbox`.
   - Everything else is served as an `attachment` download. Paths cannot leave the space folder.
@@ -110,6 +111,33 @@ hosting platform.
   save commit, never overwrite an existing file, and are stored inside the space.
 - **No outbound requests:** images referenced by web addresses are never downloaded.
 
+## Diagrams
+
+Mermaid diagram blocks (` ```mermaid ` and Azure DevOps `::: mermaid`) are the one place
+where user content is drawn in the browser (constitution v1.3.0):
+
+- **Server markup:** the server emits the diagram text HTML-escaped inside a sanitized
+  `<figure>`, with metadata in `data-diagram*` attributes. Click links in diagrams go through
+  the same link rules as text links and are listed as plain links; `javascript:`, `data:`
+  and links that leave the space are dropped, and `call` handlers are ignored. Comments in
+  discussions never draw diagrams.
+- **Isolated renderer:** the text is drawn by Mermaid in `/diagram-renderer.html`, loaded in
+  a hidden `<iframe sandbox="allow-scripts">` **without** `allow-same-origin`. The frame has
+  an opaque origin: no access to the wiki's cookies, storage, page or API. The page is served
+  with its own policy:
+  `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'`.
+  It has no network access, no `eval` and no inline scripts. `'unsafe-inline'` styles apply
+  inside the frame only.
+- **Mermaid configuration:** `securityLevel: 'strict'`, no HTML labels, limits on text size
+  (20 000 characters) and edges (500). Diagrams cannot change these with `%%{init}%%`
+  directives.
+- **Image-only display:** the wiki accepts messages only from that frame and shows the result
+  only as `<img src="data:image/svg+xml,…">`. It is never inserted into the page as markup;
+  an image document cannot run scripts or load resources.
+- **Assets:** bundle files under `/assets` carry `Access-Control-Allow-Origin: *`, so the
+  opaque-origin frame can load its module scripts. They are public, content-hashed static
+  code sent without credentials. Pages and API responses never carry the header.
+
 ## Container
 
 - **Base image:** `mcr.microsoft.com/dotnet/runtime-deps:10.0-noble-chiseled`. It has no
@@ -124,6 +152,10 @@ hosting platform.
 
 All shipped dependencies use permissive licenses (MIT, BSD, Apache-2.0). See
 `THIRD-PARTY-NOTICES.md` and `scripts/check-licenses.ps1`.
+
+**Mermaid** 11.17.2 (MIT) draws diagrams, only inside the isolated renderer. Its dependency
+**DOMPurify** is dual-licensed MPL-2.0 or Apache-2.0 and is used under **Apache-2.0**.
+Mermaid 12 is not used: it depends on elkjs (EPL-2.0).
 
 **libgit2** (bundled with LibGit2Sharp) is licensed under **GPLv2 with a linking exception**.
 It is used unmodified as a dynamically loaded native library, which the exception permits.

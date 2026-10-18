@@ -8,6 +8,16 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
     // nonce of the SPA shell (see SpaHosting), and user content is stripped of style attributes.
     public static readonly string ContentSecurityPolicy = BuildPolicy(null);
 
+    /// <summary>
+    /// Policy of the isolated diagram renderer page (004 contracts/renderer.md, constitution v1.3.0):
+    /// runs only in a sandboxed opaque-origin frame; inline styles for Mermaid, no network, no eval.
+    /// </summary>
+    public const string RendererPolicy =
+        "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; font-src 'none'; " +
+        "connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'";
+
+    public const string RendererPath = "/diagram-renderer.html";
+
     /// <summary>The policy; <paramref name="styleNonce"/> additionally allows nonce-tagged &lt;style&gt; elements.</summary>
     public static string BuildPolicy(string? styleNonce) =>
         "default-src 'self'; script-src 'self'; " +
@@ -27,7 +37,8 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 
             headers.XContentTypeOptions = "nosniff";
             headers["Referrer-Policy"] = "no-referrer";
-            headers.XFrameOptions = "DENY";
+            // Only the diagram renderer may be framed, and only by the wiki itself.
+            headers.XFrameOptions = context.Request.Path.Equals(RendererPath, StringComparison.OrdinalIgnoreCase) ? "SAMEORIGIN" : "DENY";
             return Task.CompletedTask;
         });
 
