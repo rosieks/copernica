@@ -221,7 +221,7 @@ the page text never waits for them.
   - main JS gzip grows by ≤ 5 KB versus `master`;
   - Mermaid appears only in chunks reachable from `diagram-renderer.html`;
   - `grep -r "org.eclipse.elk" src/web/dist` finds nothing.
-- [ ] T028 Regression (D14):
+- [X] T028 Regression (D14):
   - `dotnet test`, `npm --prefix src/web test`, and the full Chromium e2e suite (001–004);
   - Firefox and WebKit in separate runs, one browser per run, because they share the server state.
 
