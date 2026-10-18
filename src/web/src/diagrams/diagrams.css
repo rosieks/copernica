@@ -1,0 +1,70 @@
+/* Diagram figures (specs/004-mermaid-diagrams/contracts/ui.md). */
+
+.prose figure.diagram {
+  margin: var(--space-5) 0;
+  max-width: 100%;
+  /* Only the diagram scrolls sideways, never the page (FR-011). */
+  overflow-x: auto;
+}
+
+.diagram__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+.prose .diagram__image {
+  display: block;
+  margin: 0 auto;
+  max-width: none;
+  height: auto;
+  background: none;
+}
+
+.diagram__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 8rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.diagram__callout {
+  margin-bottom: var(--space-2);
+}
+
+.diagram__message {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prose .diagram__links {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+
+/*
+ * The hidden renderer frame takes no space and is never seen. It keeps a layout width,
+ * because some diagram types (gantt) are drawn as wide as the frame's page: about the
+ * reading width of a page.
+ */
+iframe.diagram-renderer {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  width: 800px;
+  height: 600px;
+  border: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* `.prose pre` and `.diagram__image` set `display: block`, which would override `hidden`. */
+.prose figure.diagram [hidden] {
+  display: none;
+}

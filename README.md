@@ -106,6 +106,10 @@ All settings are listed in
   commit. By default they go to `.attachments/` at the root of the space (as in Azure
   DevOps Wiki). The folder can be configured per space; see
   [configuration](specs/001-git-backed-team-wiki/contracts/configuration.md).
+- **Diagrams:** ` ```mermaid ` code blocks and Azure DevOps Wiki `::: mermaid` blocks are
+  drawn as diagrams on pages, in page versions and in the editor preview. They follow the
+  light or dark theme; **Show diagram source** shows the text. Use `accTitle:` and
+  `accDescr:` to give a diagram an accessible name and description.
 
 **Keyboard shortcuts** (press `?` for the list):
 

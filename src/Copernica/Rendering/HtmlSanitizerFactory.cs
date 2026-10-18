@@ -20,7 +20,9 @@ public static class HtmlSanitizerFactory
     private static readonly string[] AllowedAttributes =
     [
         "href", "src", "alt", "title", "id", "class", "colspan", "rowspan", "align", "start", "type",
-        "checked", "disabled", "rel", "open", "width", "height", "data-wiki-page",
+        "checked", "disabled", "rel", "open", "width", "height", "data-wiki-page", "aria-label",
+        // Diagram figures (004 contracts/rendering.md).
+        "data-diagram", "data-diagram-type", "data-diagram-name", "data-diagram-description", "data-diagram-too-large",
     ];
 
     public static HtmlSanitizer Create()

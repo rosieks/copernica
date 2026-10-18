@@ -1,4 +1,10 @@
-/** Anchors over the article's plain text (`textContent`), matching the server (research.md R6). */
+/**
+ * Anchors over the article's plain text (`textContent`), matching the server (research.md R6).
+ * UI added to the page in the browser (diagram toolbars, status text) is marked with
+ * `data-anchor-skip` and left out, so the text stays identical to the server's.
+ */
+
+export const ANCHOR_SKIP_ATTRIBUTE = 'data-anchor-skip';
 
 export const CONTEXT_LENGTH = 32;
 export const MAX_EXACT_LENGTH = 2000;
@@ -12,20 +18,36 @@ export interface TextAnchorInput {
 }
 
 function textNodes(root: Node): Text[] {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      const skipped = node.parentElement?.closest(`[${ANCHOR_SKIP_ATTRIBUTE}]`);
+      return skipped && root.contains(skipped) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    },
+  });
   const nodes: Text[] = [];
   for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
   return nodes;
 }
 
-/** Offset of (node, offset) within `root.textContent`. */
+/** The anchoring text of `root`: its `textContent` without skipped UI. */
+export function anchorText(root: Node): string {
+  return textNodes(root)
+    .map((node) => node.data)
+    .join('');
+}
+
+/** Offset of (node, offset) within the anchoring text. */
 function absoluteOffset(root: Node, container: Node, offset: number): number | undefined {
   if (container.nodeType !== Node.TEXT_NODE) {
-    // Boundary between children: measure the text of the preceding children.
-    const range = document.createRange();
-    range.setStart(root, 0);
-    range.setEnd(container, offset);
-    return range.toString().length;
+    // Boundary between children: measure the text nodes before it.
+    const boundary = document.createRange();
+    boundary.setStart(container, offset);
+    let total = 0;
+    for (const node of textNodes(root)) {
+      if (boundary.comparePoint(node, node.data.length) > 0) break;
+      total += node.data.length;
+    }
+    return total;
   }
   let total = 0;
   for (const node of textNodes(root)) {
@@ -41,7 +63,7 @@ export function anchorFromSelection(root: HTMLElement, selection: Selection | nu
   const range = selection.getRangeAt(0);
   if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return undefined;
 
-  const text = root.textContent ?? '';
+  const text = anchorText(root);
   let start = absoluteOffset(root, range.startContainer, range.startOffset);
   let end = absoluteOffset(root, range.endContainer, range.endOffset);
   if (start === undefined || end === undefined || end <= start) return undefined;
