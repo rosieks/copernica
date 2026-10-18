@@ -163,14 +163,33 @@ test.describe('US8 diagrams', () => {
     await expect.poll(() => drawn(page).getAttribute('src')).toBe(lightSrc);
   });
 
-  test('D9: a wide diagram scrolls on its own at 320 px', async ({ page }) => {
+  test('D9: a wide diagram fits the column and scrolls on its own at full size (320 px)', async ({ page }) => {
     await page.setViewportSize(viewports.narrow);
     await page.goto('/s/handbook/visuals/wide.md');
     await expectAllDrawn(page, 1);
+    const figure = page.locator('figure.diagram');
+    const scrolls = () => figure.evaluate((f) => f.scrollWidth > f.clientWidth);
 
     await expectNoReflow(page);
-    const figure = page.locator('figure.diagram');
-    expect(await figure.evaluate((f) => f.scrollWidth > f.clientWidth)).toBe(true);
+    expect(await scrolls()).toBe(false);
+
+    // Keyboard, like D10: WebKit does not focus a button on click.
+    await page.getByRole('button', { name: 'Show full size' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Fit to width' })).toBeFocused();
+    await expectNoReflow(page);
+    expect(await scrolls()).toBe(true);
+
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Show full size' })).toBeFocused();
+    expect(await scrolls()).toBe(false);
+  });
+
+  test('D9: a diagram that fits offers no size toggle', async ({ page }) => {
+    await page.goto('/s/handbook/visuals/ado.md');
+    await expectAllDrawn(page, 1);
+    await expect(page.getByRole('button', { name: 'Show diagram source' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show full size' })).toHaveCount(0);
   });
 
   test('D10: the source toggle works with the keyboard', async ({ page }) => {
