@@ -13,7 +13,7 @@ public static class SpacesEndpoints
 {
     public static RouteGroupBuilder MapSpacesEndpoints(this RouteGroupBuilder api)
     {
-        api.MapGet("/me", async (HttpContext context, IOptions<AzureDevOpsOptions> azureDevOps, UserPatStore pats) =>
+        api.MapGet("/me", async (HttpContext context, IOptions<AzureDevOpsOptions> azureDevOps, IOptions<Configuration.CopernicaOptions> copernica, UserPatStore pats) =>
         {
             var user = context.GetCurrentUser();
             var patRequired = azureDevOps.Value.Server.UserPat;
@@ -24,6 +24,7 @@ public static class SpacesEndpoints
                 displayName = user.DisplayName,
                 email = user.Email,
                 azureDevOpsPat = new { required = patRequired, registered = patRegistered },
+                uploads = new { maxBytes = copernica.Value.Attachments.MaxBytes, formats = Attachments.ImageFormat.All.Select(f => f.ContentType) },
             });
         });
 

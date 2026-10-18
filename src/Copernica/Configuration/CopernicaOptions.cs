@@ -1,3 +1,4 @@
+using Copernica.Attachments;
 using Copernica.Spaces;
 
 namespace Copernica.Configuration;
@@ -27,6 +28,8 @@ public sealed class CopernicaOptions
     public ForwardedHeadersSettings ForwardedHeaders { get; set; } = new();
 
     public AuthOptions Auth { get; set; } = new();
+
+    public AttachmentOptions Attachments { get; set; } = new();
 
     public List<SpaceOptions> Spaces { get; set; } = [];
 

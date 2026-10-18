@@ -1,0 +1,9 @@
+.image-description__thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 12rem;
+  margin: 0 auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-image-card);
+}

@@ -101,6 +101,11 @@ All settings are listed in
 - **Commenting:** select text in a page and choose **Comment** next to the selection, or
   press `c`.
 - **Page actions:** the **⋯** menu offers *Copy link*, *Download Markdown* and *Delete page…*.
+- **Images:** paste a screenshot or drop image files into the editor, or use **Insert image**.
+  The wiki asks for a short description and saves the images together with the page in one
+  commit. By default they go to `.attachments/` at the root of the space (as in Azure
+  DevOps Wiki). The folder can be configured per space; see
+  [configuration](specs/001-git-backed-team-wiki/contracts/configuration.md).
 
 **Keyboard shortcuts** (press `?` for the list):
 

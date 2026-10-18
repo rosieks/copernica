@@ -46,6 +46,19 @@ Copernica__Spaces__2__Id=sandbox
 Copernica__Spaces__2__Provider=Git
 ```
 
+### Images pasted in the editor (003)
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `Copernica__Attachments__Path` | `.attachments` | Where new images go, relative to the space root. Tokens: `{dir}` (folder of the page), `{page}` (page path without `.md`). Examples: `images`, `{page}.assets`, `{dir}` |
+| `Copernica__Spaces__N__Attachments__Path` | *(the default)* | Per-space override |
+| `Copernica__Attachments__MaxBytes` | `10485760` | Maximum size of one image |
+| `Copernica__Attachments__MaxPendingBytesPerUser` | `209715200` | Maximum total size of a user's unsaved images |
+
+A path that would leave the space makes only that space unavailable. Links inserted by the
+editor are always relative to the page. Links starting with `/` (Azure DevOps Wiki) are
+resolved from the space root.
+
 `Git` spaces with an HTTPS remote need `Copernica__Spaces__N__Credential__Token` (or
 `_FILE`) with read/write access, because there is no per-user identity to push with. All
 signed-in users can then edit (FR-009c); commits still carry the user as author.

@@ -58,3 +58,25 @@
 .prose.preview-pane {
   max-width: none;
 }
+
+.page-edit__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.page-edit__upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.page-edit__upload progress {
+  flex: 1 1 10rem;
+  max-width: 20rem;
+  accent-color: var(--color-accent-solid);
+}

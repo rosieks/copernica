@@ -101,6 +101,29 @@ public sealed class TestRemote : IDisposable
         return repo.Branches[Branch]?.Tip?[path]?.Target is Blob blob ? blob.GetContentText() : null;
     }
 
+    public byte[]? ReadBytes(string path)
+    {
+        using var repo = new Repository(Path);
+        if (repo.Branches[Branch]?.Tip?[path]?.Target is not Blob blob)
+        {
+            return null;
+        }
+
+        using var stream = blob.GetContentStream();
+        using var copy = new MemoryStream();
+        stream.CopyTo(copy);
+        return copy.ToArray();
+    }
+
+    /// <summary>Paths added or changed by the branch tip compared with its parent.</summary>
+    public IReadOnlyList<string> TipChanges()
+    {
+        using var repo = new Repository(Path);
+        var tip = repo.Branches[Branch].Tip;
+        var parent = tip.Parents.FirstOrDefault();
+        return repo.Diff.Compare<TreeChanges>(parent?.Tree, tip.Tree).Select(c => c.Path).OrderBy(p => p, StringComparer.Ordinal).ToList();
+    }
+
     public void Dispose()
     {
         try

@@ -1,3 +1,4 @@
+using Copernica.Attachments;
 using Copernica.Discussions;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,8 @@ public sealed class CopernicaDbContext(DbContextOptions<CopernicaDbContext> opti
     public DbSet<Comment> Comments => Set<Comment>();
 
     public DbSet<DelegatedToken> DelegatedTokens => Set<DelegatedToken>();
+
+    public DbSet<PendingImage> PendingImages => Set<PendingImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,6 +69,23 @@ public sealed class CopernicaDbContext(DbContextOptions<CopernicaDbContext> opti
             e.ToTable("user_tokens");
             e.HasKey(t => t.CacheKey);
             e.Property(t => t.CacheKey).HasMaxLength(512);
+        });
+
+        modelBuilder.Entity<PendingImage>(e =>
+        {
+            e.ToTable("pending_images");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Id).HasMaxLength(32);
+            e.Property(p => p.UserId).HasMaxLength(256).IsRequired();
+            e.Property(p => p.SpaceId).HasMaxLength(63).IsRequired();
+            e.Property(p => p.PagePath).HasMaxLength(1024).IsRequired();
+            e.Property(p => p.RepositoryPath).HasMaxLength(1024).IsRequired();
+            e.Property(p => p.OriginalName).HasMaxLength(PendingImage.MaxOriginalNameLength).IsRequired();
+            e.Property(p => p.ContentType).HasMaxLength(32).IsRequired();
+            e.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(p => new { p.UserId, p.SpaceId, p.PagePath });
+            e.HasIndex(p => p.LastUsedAt);
+            e.HasIndex(p => new { p.SpaceId, p.RepositoryPath }).IsUnique();
         });
 
         modelBuilder.Entity<Comment>(e =>

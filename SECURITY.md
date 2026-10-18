@@ -33,7 +33,8 @@ and to the system temp directory:
 | Path | Content |
 |------|---------|
 | `mirrors/<space>.git` | Bare mirrors of the configured repositories (page content) |
-| `copernica.db` | SQLite: users (id, name, email), discussions and comments, space status, encrypted delegated tokens |
+| `copernica.db` | SQLite: users (id, name, email), discussions and comments, space status, encrypted delegated tokens, metadata of unsaved images (`pending_images`) |
+| `pending/` | Images pasted into the editor and not saved yet (owner-only). Deleted when the page is saved, or 24 hours after their last use; committed to the repository only together with the page |
 | `keys/` | ASP.NET Core Data Protection keys (cookie and token encryption). Protect this directory like a secret; the keys are not additionally encrypted at rest |
 
 Back up the data directory as a whole. Page content can always be re-fetched from your git
@@ -93,6 +94,21 @@ hosting platform.
 - **Repository files:**
   - Images are served inline. SVG gets `Content-Security-Policy: sandbox`.
   - Everything else is served as an `attachment` download. Paths cannot leave the space folder.
+
+## Image uploads
+
+- **Who can upload:** users who can edit the space, as for saving (write permission on the
+  repository). The antiforgery header is required.
+- **Accepted content:** PNG, JPEG, GIF, WebP and SVG, checked from the file's bytes rather
+  than its name or the browser's content type. The stored extension follows the detected
+  format. Anything else is rejected.
+- **Limits:** `Copernica__Attachments__MaxBytes` per image (default 10 MB). A user's unsaved
+  images may take at most `Copernica__Attachments__MaxPendingBytesPerUser` (default 200 MB).
+- **Before saving:** an image is visible only to the user who added it (`no-store`). SVG is
+  served with `Content-Security-Policy: sandbox`, as SVG files from repositories are.
+- **After saving:** images are ordinary repository files. They are committed in the page's
+  save commit, never overwrite an existing file, and are stored inside the space.
+- **No outbound requests:** images referenced by web addresses are never downloaded.
 
 ## Container
 

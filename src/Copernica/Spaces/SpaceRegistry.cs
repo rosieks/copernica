@@ -14,7 +14,7 @@ public sealed class SpaceRegistry
 
     public SpaceRegistry(IOptions<CopernicaOptions> options)
     {
-        All = Space.CreateAll(options.Value.Spaces, options.Value.DataDirectory);
+        All = Space.CreateAll(options.Value.Spaces, options.Value.DataDirectory, options.Value.Attachments.Path);
 
         // Invalid entries stay in All (and are reported) but cannot be looked up by a duplicate id.
         _byId = All.Where(s => s.IsValid).ToDictionary(s => s.Id, StringComparer.Ordinal);

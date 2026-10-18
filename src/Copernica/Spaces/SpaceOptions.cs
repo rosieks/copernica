@@ -1,3 +1,5 @@
+using Copernica.Attachments;
+
 namespace Copernica.Spaces;
 
 public enum SpaceProvider
@@ -22,6 +24,9 @@ public sealed class SpaceOptions
     public string? Folder { get; set; }
 
     public SpaceCredentialOptions Credential { get; set; } = new();
+
+    /// <summary>Overrides <c>Copernica:Attachments:Path</c> for this space.</summary>
+    public SpaceAttachmentOptions Attachments { get; set; } = new();
 }
 
 public sealed class SpaceCredentialOptions

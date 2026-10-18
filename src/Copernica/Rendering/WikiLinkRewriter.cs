@@ -12,7 +12,12 @@ namespace Copernica.Rendering;
 /// </list>
 /// Links to pages that do not exist, or that escape the space, get the <c>broken-link</c> class.
 /// </summary>
-public sealed class WikiLinkRewriter(string spaceId, string pagePath, string commitId, Func<string, bool> pageExists) : ILinkRewriter
+public sealed class WikiLinkRewriter(
+    string spaceId,
+    string pagePath,
+    string commitId,
+    Func<string, bool> pageExists,
+    IReadOnlyDictionary<string, string>? pendingImages = null) : ILinkRewriter
 {
     public const string WikiScheme = "wiki:";
     public const string BrokenLinkClass = "broken-link";
@@ -51,7 +56,7 @@ public sealed class WikiLinkRewriter(string spaceId, string pagePath, string com
                 : ($"/s/{rest[..slash]}/{rest[(slash + 1)..]}", false);
         }
 
-        if (target.StartsWith('#') || Uri.TryCreate(target, UriKind.Absolute, out _) || target.StartsWith("//", StringComparison.Ordinal))
+        if (target.StartsWith('#') || IsExternal(target))
         {
             return (null, false);
         }
@@ -66,6 +71,12 @@ public sealed class WikiLinkRewriter(string spaceId, string pagePath, string com
             return ("", true);
         }
 
+        // Images added in the current edit and not saved yet are shown from the upload (003 R5).
+        if (isImage && pendingImages is not null && pendingImages.TryGetValue(resolved, out var pendingUrl))
+        {
+            return (pendingUrl, false);
+        }
+
         if (!isImage && resolved.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
         {
             return ($"/s/{spaceId}/{Encode(resolved)}{fragment}", !pageExists(resolved));
@@ -74,8 +85,22 @@ public sealed class WikiLinkRewriter(string spaceId, string pagePath, string com
         return ($"/api/spaces/{spaceId}/files/{Encode(resolved)}?version={commitId}", false);
     }
 
-    /// <summary>Resolves <paramref name="relative"/> against the current page's folder; null if it escapes the space.</summary>
-    private string? Combine(string relative)
+    private string? Combine(string relative) => ResolvePath(pagePath, relative);
+
+    /// <summary>
+    /// True for links with a scheme (<c>https:</c>, <c>mailto:</c>) or protocol-relative ones.
+    /// A leading <c>/</c> is a space-root link, even though .NET on Linux parses "/x" as an
+    /// absolute file URI.
+    /// </summary>
+    internal static bool IsExternal(string target) =>
+        target.StartsWith("//", StringComparison.Ordinal)
+        || (!target.StartsWith('/') && Uri.TryCreate(target, UriKind.Absolute, out _));
+
+    /// <summary>
+    /// Resolves a link target against the folder of <paramref name="pagePath"/>; targets starting
+    /// with <c>/</c> resolve from the space root. Null if the result escapes the space.
+    /// </summary>
+    internal static string? ResolvePath(string pagePath, string relative)
     {
         var decoded = Uri.UnescapeDataString(relative).Replace('\\', '/');
         var segments = new List<string>();

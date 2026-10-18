@@ -1,4 +1,5 @@
 using System.Text;
+using Copernica.Attachments;
 using Copernica.Auth;
 using Copernica.Git;
 using Copernica.Hosting;
@@ -7,11 +8,12 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Copernica.Api;
 
-public sealed record SavePageRequest(PageVersionRef? Base, string? Markdown, string? Message);
+/// <param name="Attachments">Pending images of this edit (003 contracts/api.md §3).</param>
+public sealed record SavePageRequest(PageVersionRef? Base, string? Markdown, string? Message, IReadOnlyList<string>? Attachments = null);
 
 public sealed record DeletePageRequest(PageVersionRef? Base, string? Message);
 
-public sealed record RenderRequest(string? SpaceId, string? Path, string? Markdown);
+public sealed record RenderRequest(string? SpaceId, string? Path, string? Markdown, IReadOnlyList<string>? Attachments = null);
 
 /// <summary>Create, update and delete pages; editor preview (FR-010..FR-017).</summary>
 public static class PageWriteEndpoints
@@ -29,7 +31,15 @@ public static class PageWriteEndpoints
         return api;
     }
 
-    private static async Task<IResult> SaveAsync(string spaceId, string path, SavePageRequest request, HttpContext context, PermissionService permissions, PageWriteService writer)
+    private static async Task<IResult> SaveAsync(
+        string spaceId,
+        string path,
+        SavePageRequest request,
+        HttpContext context,
+        PermissionService permissions,
+        PageWriteService writer,
+        PendingImageStore pending,
+        ReferencedImages referenced)
     {
         var access = await permissions.RequireWriteAsync(context, spaceId);
         if (access.Problem is not null)
@@ -47,7 +57,24 @@ public static class PageWriteEndpoints
             return ProblemTypes.BadRequest("The page content is missing or larger than 1 MiB.");
         }
 
-        return await writer.WriteAsync(access, new PageChange(normalized, request.Markdown, request.Message!, request.Base), context.RequestAborted);
+        // Commit the edit's pending images that the saved text still references (003 FR-007).
+        var images = await pending.ResolveAsync(access.User!, spaceId, normalized, request.Attachments, context.RequestAborted);
+        var used = referenced.Collect(request.Markdown, normalized);
+        var files = new List<AddedFile>();
+        foreach (var image in images.Where(i => used.Contains(i.RepositoryPath)))
+        {
+            files.Add(new AddedFile(image.RepositoryPath, await pending.ReadAllAsync(image, context.RequestAborted)));
+        }
+
+        var change = new PageChange(normalized, request.Markdown, request.Message!, request.Base) { Files = files };
+        var result = await writer.WriteAsync(access, change, context.RequestAborted);
+        if (result is Ok<SaveResult> && images.Count > 0)
+        {
+            // The edit is over: committed images are repository files now, the others are discarded.
+            await pending.DeleteAsync(images, context.RequestAborted);
+        }
+
+        return result;
     }
 
     private static async Task<IResult> DeleteAsync(string spaceId, string path, [Microsoft.AspNetCore.Mvc.FromBody] DeletePageRequest request, HttpContext context, PermissionService permissions, PageWriteService writer)
@@ -72,7 +99,7 @@ public static class PageWriteEndpoints
         return result is Ok<SaveResult> ? Results.NoContent() : result;
     }
 
-    private static async Task<IResult> RenderAsync(RenderRequest request, HttpContext context, PermissionService permissions, PageService pages)
+    private static async Task<IResult> RenderAsync(RenderRequest request, HttpContext context, PermissionService permissions, PageService pages, PendingImageStore pending)
     {
         var access = await permissions.RequireReadAsync(context, request.SpaceId ?? "");
         if (access.Problem is not null)
@@ -90,7 +117,10 @@ public static class PageWriteEndpoints
             return ProblemTypes.BadRequest("The content is missing or larger than 1 MiB.");
         }
 
-        return Results.Ok(new { html = pages.RenderPreview(access.Space!, normalized, request.Markdown) });
+        // Unsaved images of this edit are shown from their upload URL (003 R5); this also keeps them alive.
+        var images = await pending.ResolveAsync(access.User!, access.Space!.Id, normalized, request.Attachments, context.RequestAborted);
+        var urls = images.ToDictionary(i => i.RepositoryPath, i => $"/api/uploads/{i.Id}", StringComparer.Ordinal);
+        return Results.Ok(new { html = pages.RenderPreview(access.Space!, normalized, request.Markdown, urls) });
     }
 
     private static async Task<IResult> HistoryAsync(
@@ -226,6 +256,12 @@ public sealed class PageWriteService(
                         ["theirsAuthors"] = conflict.TheirsAuthors,
                         ["mineSource"] = conflict.MineSource,
                     });
+            case SaveOutcome.AttachmentExists exists:
+                return Results.Problem(
+                    title: "An image with the same name already exists.",
+                    detail: $"'{exists.SpacePath}' is already in the repository. Remove the image from the page and paste it again.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    type: ProblemTypes.For("attachment-exists"));
             case SaveOutcome.PageExists:
                 return Results.Problem(title: "A page with this path already exists.", statusCode: StatusCodes.Status409Conflict, type: ProblemTypes.For("page-exists"));
             case SaveOutcome.PageMissing:

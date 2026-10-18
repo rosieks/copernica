@@ -37,6 +37,8 @@ export async function expectNoReflow(page: Page): Promise<void> {
 
 /** The element that has focus is never <body> after an interaction (FR-014). */
 export async function expectFocusNotLost(page: Page): Promise<void> {
-  const tag = await page.evaluate(() => document.activeElement?.tagName ?? 'BODY');
-  expect(tag, 'focus fell back to <body>').not.toBe('BODY');
+  // After navigation focus moves to the new view's heading once it has rendered (RouteAnnouncer).
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.tagName ?? 'BODY'), { message: 'focus fell back to <body>', timeout: 3_000 })
+    .not.toBe('BODY');
 }

@@ -106,11 +106,11 @@ public sealed class PageService(
     }
 
     /// <summary>Renders arbitrary Markdown as if it were the page at <paramref name="path"/> (editor preview).</summary>
-    public string RenderPreview(Space space, string path, string markdown)
+    public string RenderPreview(Space space, string path, string markdown, IReadOnlyDictionary<string, string>? pendingImages = null)
     {
         var head = GetHead(space) ?? "";
         var pages = head.Length == 0 ? new HashSet<string>() : trees.GetPagePaths(space, head);
-        return renderer.Render(markdown, new WikiLinkRewriter(space.Id, path, head, pages.Contains));
+        return renderer.Render(markdown, new WikiLinkRewriter(space.Id, path, head, pages.Contains, pendingImages));
     }
 
     private string Render(Space space, string path, string commitId, string blobId, string content) =>

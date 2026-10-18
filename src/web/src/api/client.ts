@@ -28,6 +28,12 @@ function readCookie(name: string): string | undefined {
     ?.slice(name.length + 1);
 }
 
+/** The antiforgery token for state-changing requests made outside `api()` (e.g. uploads with progress). */
+export function antiforgeryToken(): string | undefined {
+  const token = readCookie('XSRF-TOKEN');
+  return token ? decodeURIComponent(token) : undefined;
+}
+
 /** Fetch wrapper: JSON in/out, antiforgery header on state-changing requests, problem+json errors. */
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase();
