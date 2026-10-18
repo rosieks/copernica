@@ -7,6 +7,16 @@ export interface Draft {
   markdown: string;
   message: string;
   base?: { commitId: string; blobId?: string | null };
+  /** Pending images added in this edit (003); sent with the preview and the save. */
+  attachments?: DraftAttachment[];
+}
+
+export interface DraftAttachment {
+  id: string;
+  repositoryPath: string;
+  link: string;
+  name: string;
+  previewUrl: string;
 }
 
 export function loadDraft(spaceId: string, path: string): Draft | undefined {

@@ -25,6 +25,9 @@ public sealed class MarkdownRenderer
 
     private readonly HtmlSanitizer _sanitizer = HtmlSanitizerFactory.Create();
 
+    /// <summary>Parses with the same pipeline as <see cref="Render"/> (e.g. to find image references).</summary>
+    public MarkdownDocument Parse(string markdown) => Markdown.Parse(markdown, _pipeline);
+
     /// <summary>Renders Markdown and sanitizes the result. <paramref name="links"/> rewrites link targets.</summary>
     public string Render(string markdown, ILinkRewriter? links = null)
     {

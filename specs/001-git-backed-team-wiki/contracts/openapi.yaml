@@ -223,6 +223,45 @@ paths:
         '200': { description: File content }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /spaces/{spaceId}/uploads:
+    post:
+      summary: Upload an image for a page edit as a pending image (003)
+      description: |
+        Requires write permission on the space. The image is committed only when the page is
+        saved with its id in `attachments` and still referenced in the text.
+      parameters:
+        - { $ref: '#/components/parameters/SpaceId' }
+        - { name: page, in: query, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PendingUpload' }
+        '400': { description: '`type` = `validation`: no or several files, invalid page' }
+        '403': { description: '`type` = `no-write-permission`' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { description: '`type` = `attachment-too-large` (image or pending quota)' }
+        '415': { description: '`type` = `unsupported-image`' }
+
+  /uploads/{id}:
+    get:
+      summary: A pending image; only its owner can read it (003)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-f]{32}$' } }
+      responses:
+        '200': { description: Image bytes (`no-store`, SVG with `CSP: sandbox`) }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /render:
     post:
       summary: Render Markdown for the editor preview (same pipeline as pages)
@@ -237,6 +276,11 @@ paths:
                 spaceId: { type: string }
                 path: { type: string }
                 markdown: { type: string, maxLength: 1048576 }
+                attachments:
+                  type: array
+                  maxItems: 100
+                  items: { type: string }
+                  description: Pending images of the edit, shown from their upload URL (003)
       responses:
         '200':
           description: Sanitized HTML
@@ -416,6 +460,24 @@ components:
           properties:
             required: { type: boolean }
             registered: { type: boolean }
+        uploads:
+          type: object
+          description: Only on GET /me — limits for pasted images (003)
+          properties:
+            maxBytes: { type: integer }
+            formats: { type: array, items: { type: string } }
+
+    PendingUpload:
+      type: object
+      required: [id, repositoryPath, link, name, contentType, size, previewUrl]
+      properties:
+        id: { type: string }
+        repositoryPath: { type: string, description: Space-relative path the image will be committed to }
+        link: { type: string, description: Link relative to the page, URL-encoded }
+        name: { type: string }
+        contentType: { type: string }
+        size: { type: integer }
+        previewUrl: { type: string }
 
     Space:
       type: object
@@ -467,6 +529,14 @@ components:
         base: { $ref: '#/components/schemas/PageVersionRef' }
         markdown: { type: string, maxLength: 1048576 }
         message: { type: string, minLength: 1, maxLength: 500 }
+        attachments:
+          type: array
+          maxItems: 100
+          items: { type: string }
+          description: >
+            Pending images of this edit (003). Only the user's own images for this space and
+            page that are referenced in `markdown` are committed, in the same commit. A path
+            that already exists gives 409 `attachment-exists`.
 
     SaveResult:
       type: object

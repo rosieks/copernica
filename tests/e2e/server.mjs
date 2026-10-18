@@ -100,6 +100,11 @@ const env = {
   Copernica__Spaces__1__DisplayName: 'Payments Service',
   Copernica__Spaces__1__RemoteUrl: service.bare,
   Copernica__Spaces__1__Folder: 'docs',
+  // 003: per-space image locations; `notes` keeps its repository only on the data volume.
+  Copernica__Spaces__1__Attachments__Path: 'images',
+  Copernica__Spaces__2__Id: 'notes',
+  Copernica__Spaces__2__DisplayName: 'Notes',
+  Copernica__Spaces__2__Attachments__Path: '{page}.assets',
 };
 
 writeFileSync(join(here, '.e2e-state.json'), JSON.stringify({ work, handbook, service }, null, 2));

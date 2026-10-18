@@ -1,3 +1,4 @@
+using Copernica.Attachments;
 using Copernica.Hosting.AzureDevOps;
 
 namespace Copernica.Api;
@@ -12,6 +13,7 @@ public static class ApiEndpoints
         api.MapPageWriteEndpoints();
         api.MapDiscussionsEndpoints();
         api.MapUserTokenEndpoints();
+        api.MapUploadEndpoints();
         return endpoints;
     }
 }

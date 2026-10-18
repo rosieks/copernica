@@ -5,7 +5,14 @@ using LibGit2Sharp;
 
 namespace Copernica.Git;
 
-public sealed record PageChange(string Path, string? Content, string Message, PageVersionRef? Base);
+public sealed record PageChange(string Path, string? Content, string Message, PageVersionRef? Base)
+{
+    /// <summary>Files committed together with the page in the same commit (003 FR-007), e.g. pasted images.</summary>
+    public IReadOnlyList<AddedFile> Files { get; init; } = [];
+}
+
+/// <summary>A new file at a space-relative path; never overwrites an existing file.</summary>
+public sealed record AddedFile(string SpacePath, byte[] Content);
 
 public sealed record CommitAuthor(string Name, string Email);
 
@@ -25,6 +32,9 @@ public abstract record SaveOutcome
         string MineSource) : SaveOutcome;
 
     public sealed record PageExists : SaveOutcome;
+
+    /// <summary>A file to add already exists in the repository (003 contracts/api.md §3).</summary>
+    public sealed record AttachmentExists(string SpacePath) : SaveOutcome;
 
     public sealed record PageMissing : SaveOutcome;
 
@@ -74,7 +84,7 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
                 return new SaveOutcome.HostingUnavailable($"Branch '{space.Branch}' does not exist.");
             }
 
-            var plan = Prepare(repo, tip, change, repositoryPath, author);
+            var plan = Prepare(repo, space, tip, change, repositoryPath, author);
             if (plan.Outcome is not null)
             {
                 return plan.Outcome;
@@ -111,7 +121,7 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
         public IReadOnlyList<string> MergedAuthors { get; init; } = [];
     }
 
-    private Plan Prepare(Repository repo, Commit tip, PageChange change, string repositoryPath, CommitAuthor author)
+    private Plan Prepare(Repository repo, Space space, Commit tip, PageChange change, string repositoryPath, CommitAuthor author)
     {
         Commit baseCommit;
         if (change.Base is null)
@@ -138,8 +148,24 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             }
         }
 
+        // Added files are new paths: never overwrite one that exists at the base or the tip.
+        foreach (var file in change.Files)
+        {
+            var path = space.ToRepositoryPath(file.SpacePath);
+            if (baseCommit[path] is not null || tip[path] is not null)
+            {
+                return new Plan(null, false, new SaveOutcome.AttachmentExists(file.SpacePath));
+            }
+        }
+
         var signature = new Signature(author.Name, author.Email, time.GetUtcNow());
         var definition = TreeDefinition.From(baseCommit.Tree);
+        foreach (var file in change.Files)
+        {
+            var blob = repo.ObjectDatabase.CreateBlob(new MemoryStream(file.Content));
+            definition.Add(space.ToRepositoryPath(file.SpacePath), blob, Mode.NonExecutableFile);
+        }
+
         if (change.Content is null)
         {
             definition.Remove(repositoryPath);

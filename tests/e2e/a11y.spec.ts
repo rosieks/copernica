@@ -2,6 +2,23 @@ import { test, type Page } from '@playwright/test';
 import { scanWcag } from './a11y';
 import { viewports } from './ui-helpers';
 
+/** Puts a file on the editor as if it was pasted (003). */
+async function pasteFile(page: Page, name: string, type: string, base64: string) {
+  const editor = page.getByRole('textbox', { name: 'Page content (Markdown)' });
+  await editor.click();
+  await editor.evaluate(
+    (target, file) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0))], file.name, { type: file.type }));
+      target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+    },
+    { name, type, base64 },
+  );
+}
+
+// 1x1 PNG.
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
 interface Screen {
   name: string;
   url: string;
@@ -32,6 +49,22 @@ const SCREENS: Screen[] = [
       await p.getByRole('menuitem', { name: 'Delete page…' }).click();
       // Hover the destructive button too: its hover colour must keep the contrast.
       await p.getByRole('alertdialog').getByRole('button', { name: 'Delete page' }).hover();
+    },
+  },
+  {
+    name: 'Image description dialog',
+    url: '/s/handbook/-/edit/guides/setup.md',
+    prepare: async (p) => {
+      await pasteFile(p, 'screenshot.png', 'image/png', PNG);
+      await p.getByRole('dialog', { name: /Describe the image/ }).waitFor();
+    },
+  },
+  {
+    name: 'Image upload error',
+    url: '/s/handbook/-/edit/guides/setup.md',
+    prepare: async (p) => {
+      await pasteFile(p, 'notes.txt', 'image/png', btoa('Not an image'));
+      await p.getByRole('alert').filter({ hasText: 'was not added' }).waitFor();
     },
   },
   { name: 'Shortcut help', url: '/s/handbook/index.md', prepare: (p) => p.getByRole('article').first().click().then(() => p.keyboard.press('Shift+?')) },

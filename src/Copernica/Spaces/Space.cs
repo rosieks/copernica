@@ -1,12 +1,14 @@
 using System.Text.RegularExpressions;
+using Copernica.Attachments;
 
 namespace Copernica.Spaces;
 
 /// <summary>Validated runtime view of a configured space.</summary>
 public sealed partial class Space
 {
-    private Space(SpaceOptions options, string mirrorPath, IReadOnlyList<string> errors)
+    private Space(SpaceOptions options, string mirrorPath, IReadOnlyList<string> errors, AttachmentLocation attachments)
     {
+        Attachments = attachments;
         Id = options.Id;
         DisplayName = string.IsNullOrWhiteSpace(options.DisplayName) ? options.Id : options.DisplayName.Trim();
         Provider = options.Provider;
@@ -38,6 +40,9 @@ public sealed partial class Space
 
     public IReadOnlyList<string> ConfigurationErrors { get; }
 
+    /// <summary>Where new images of this space are stored (003 FR-013).</summary>
+    public AttachmentLocation Attachments { get; }
+
     public bool IsValid => ConfigurationErrors.Count == 0;
 
     public bool HasRemote => RemoteUrl is not null;
@@ -60,7 +65,7 @@ public sealed partial class Space
         return repositoryPath.StartsWith(prefix, StringComparison.Ordinal) ? repositoryPath[prefix.Length..] : null;
     }
 
-    public static IReadOnlyList<Space> CreateAll(IEnumerable<SpaceOptions> options, string dataDirectory)
+    public static IReadOnlyList<Space> CreateAll(IEnumerable<SpaceOptions> options, string dataDirectory, string defaultAttachmentPath = AttachmentOptions.DefaultPath)
     {
         var list = options.ToList();
         var duplicates = list
@@ -80,8 +85,15 @@ public sealed partial class Space
                 errors.Add($"Space id '{o.Id}' is used by more than one space.");
             }
 
+            var attachmentPath = o.Attachments?.Path ?? defaultAttachmentPath;
+            if (!AttachmentLocation.TryParse(attachmentPath, out var attachments, out var attachmentError))
+            {
+                // Only this space becomes unavailable (FR-026; 003 FR-014).
+                errors.Add($"Attachments:Path '{attachmentPath}' is invalid: {attachmentError}.");
+            }
+
             var directory = IdPattern().IsMatch(o.Id) ? o.Id : $"invalid-{i}";
-            result.Add(new Space(o, Path.Combine(mirrors, directory + ".git"), errors));
+            result.Add(new Space(o, Path.Combine(mirrors, directory + ".git"), errors, attachments));
         }
 
         return result;

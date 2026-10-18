@@ -46,7 +46,15 @@ export async function scanWcag(browser: Browser, url: string, options: ScanOptio
     await page.waitForLoadState('networkidle');
     await options.prepare?.(page);
     // Scan the settled screen, not an overlay that is still fading in.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
+    // (Only finite ones: a focused editor's blinking cursor animates forever.)
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => undefined)),
+      ),
+    );
     await page.addScriptTag({ path: ENGINE });
     const violations = await page.evaluate(async (policy) => {
       const ace = (window as unknown as { ace: { Checker: new () => { check(doc: Document, p: string[]): Promise<unknown> } } }).ace;

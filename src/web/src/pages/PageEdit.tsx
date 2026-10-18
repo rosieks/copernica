@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import type { EditorView } from '@codemirror/view';
+import { ImageIcon } from '@radix-ui/react-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { api, ApiError, isUnauthenticated, type Schemas } from '../api/client';
+import { useMe } from '../App';
 import { MarkdownEditor } from '../components/MarkdownEditor';
-import { clearDraft, loadDraft, saveDraft, type Draft } from '../drafts';
+import { clearDraft, loadDraft, saveDraft, type Draft, type DraftAttachment } from '../drafts';
+import { DEFAULT_LIMITS, formatMegabytes } from '../editor/uploads';
+import { useImageUploads } from '../editor/useImageUploads';
 import { joinNames, shortCommit } from '../format';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { WIDE, useMediaQuery } from '../layout/useMediaQuery';
@@ -11,6 +16,7 @@ import { pageApi, spaceRoute } from '../routes';
 import { useShortcut } from '../shortcuts';
 import { AlertDialog, Button, Callout, Dialog, Field, Tabs, useToast } from '../ui';
 import { ConflictView, type EditConflict } from './ConflictView';
+import { ImageDescriptionDialog } from './ImageDescriptionDialog';
 import { StateIndicators } from './StateIndicators';
 import './PageEdit.css';
 
@@ -45,7 +51,7 @@ function storeTab(tab: EditorTab) {
   }
 }
 
-function usePreview(spaceId: string, path: string, markdown: string, enabled: boolean) {
+function usePreview(spaceId: string, path: string, markdown: string, enabled: boolean, attachments: string[]) {
   const [debounced, setDebounced] = useState(markdown);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(markdown), 300);
@@ -53,9 +59,10 @@ function usePreview(spaceId: string, path: string, markdown: string, enabled: bo
   }, [markdown]);
 
   return useQuery({
-    queryKey: ['preview', spaceId, path, debounced],
+    queryKey: ['preview', spaceId, path, debounced, attachments],
     enabled,
-    queryFn: () => api<{ html: string }>('/api/render', { method: 'POST', json: { spaceId, path, markdown: debounced } }),
+    // Pending images of this edit are shown from their uploads (003 R5).
+    queryFn: () => api<{ html: string }>('/api/render', { method: 'POST', json: { spaceId, path, markdown: debounced, attachments } }),
     placeholderData: (previous) => previous,
   });
 }
@@ -86,6 +93,19 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   const [signInAgain, setSignInAgain] = useState<'local' | 'challenge'>();
   const [tab, setTab] = useState<EditorTab>(() => loadTab(wide));
   const messageInput = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<EditorView | null>(null);
+  const filePicker = useRef<HTMLInputElement>(null);
+  // Focus target after describing an image: the editor's content element.
+  const editorContent = useMemo(
+    () => ({
+      get current() {
+        return editorRef.current?.contentDOM ?? null;
+      },
+    }),
+    [],
+  );
+  const me = useMe();
+  const limits = me.data?.uploads?.maxBytes ? { maxBytes: me.data.uploads.maxBytes, formats: me.data.uploads.formats ?? DEFAULT_LIMITS.formats } : DEFAULT_LIMITS;
   const shownTab: EditorTab = tab === 'split' && !wide ? 'write' : tab;
   useDocumentTitle(isNew ? `New page ${path}` : `Editing ${page.data?.title ?? path}`, space.displayName);
 
@@ -106,7 +126,20 @@ export function PageEdit({ space, path, isNew = false }: Props) {
     if (draft && (restored || draft.markdown !== pristine)) saveDraft(spaceId, path, draft);
   }, [draft, pristine, restored, spaceId, path]);
 
-  const preview = usePreview(spaceId, path, draft?.markdown ?? '', shownTab !== 'write');
+  const attachmentIds = useMemo(() => (draft?.attachments ?? []).map((a) => a.id), [draft?.attachments]);
+  const preview = usePreview(spaceId, path, draft?.markdown ?? '', shownTab !== 'write', attachmentIds);
+  const setMarkdown = useCallback((markdown: string) => setDraft((d) => (d ? { ...d, markdown } : d)), []);
+  const images = useImageUploads({
+    spaceId,
+    path,
+    limits,
+    editorRef,
+    onAttachment: useCallback(
+      (attachment: DraftAttachment) => setDraft((d) => (d ? { ...d, attachments: [...(d.attachments ?? []), attachment] } : d)),
+      [],
+    ),
+    onAppend: useCallback((markdown: string) => setDraft((d) => (d ? { ...d, markdown: `${d.markdown.trimEnd()}\n\n${markdown}\n` } : d)), []),
+  });
 
   useShortcut({
     key: 's',
@@ -153,7 +186,12 @@ export function PageEdit({ space, path, isNew = false }: Props) {
     try {
       const result = await api<Schemas['SaveResult']>(pageApi(spaceId, path), {
         method: 'PUT',
-        json: { base: isNew && !toSave.base ? undefined : toSave.base, markdown: toSave.markdown, message: toSave.message },
+        json: {
+          base: isNew && !toSave.base ? undefined : toSave.base,
+          markdown: toSave.markdown,
+          message: toSave.message,
+          attachments: (toSave.attachments ?? []).map((a) => a.id),
+        },
       });
       clearDraft(spaceId, path);
       await Promise.all([
@@ -237,6 +275,30 @@ export function PageEdit({ space, path, isNew = false }: Props) {
           }
         />
       )}
+      {shownTab !== 'preview' && (
+        <div className="page-edit__toolbar">
+          <Button
+            size="sm"
+            icon={<ImageIcon />}
+            onClick={() => filePicker.current?.click()}
+          >
+            Insert image
+          </Button>
+          <span className="muted">or paste / drop images · up to {formatMegabytes(limits.maxBytes)}</span>
+          <input
+            ref={filePicker}
+            type="file"
+            hidden
+            multiple
+            accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+            onChange={(e) => {
+              const files = [...(e.target.files ?? [])];
+              e.target.value = '';
+              if (files.length) images.onFiles(files);
+            }}
+          />
+        </div>
+      )}
       <Tabs.Root
         label="Editor view"
         value={shownTab}
@@ -252,18 +314,50 @@ export function PageEdit({ space, path, isNew = false }: Props) {
         ]}
       >
         <Tabs.Panel value="write">
-          <MarkdownEditor label="Page content (Markdown)" value={current.markdown} onChange={(markdown) => setDraft({ ...current, markdown })} />
+          <MarkdownEditor
+              label="Page content (Markdown)"
+              value={current.markdown}
+              onChange={setMarkdown}
+              onFiles={images.onFiles}
+              editorRef={editorRef}
+            />
         </Tabs.Panel>
         <Tabs.Panel value="preview">
           <div className="preview-pane prose" aria-label="Preview" dangerouslySetInnerHTML={{ __html: preview.data?.html ?? '' }} />
         </Tabs.Panel>
         {wide && (
           <Tabs.Panel value="split" className="page-edit__split">
-            <MarkdownEditor label="Page content (Markdown)" value={current.markdown} onChange={(markdown) => setDraft({ ...current, markdown })} />
+            <MarkdownEditor
+              label="Page content (Markdown)"
+              value={current.markdown}
+              onChange={setMarkdown}
+              onFiles={images.onFiles}
+              editorRef={editorRef}
+            />
             <section className="preview-pane prose" aria-label="Preview" dangerouslySetInnerHTML={{ __html: preview.data?.html ?? '' }} />
           </Tabs.Panel>
         )}
       </Tabs.Root>
+      {images.uploads.map((u) => (
+        <div key={u.key} className="page-edit__upload">
+          <span>
+            Uploading {u.name} — {Math.round(u.progress * 100)} %
+          </span>
+          <progress
+            max={100}
+            value={Math.round(u.progress * 100)}
+            aria-label={`Uploading ${u.name}`}
+          />
+        </div>
+      ))}
+      {images.rejections.map((r) => (
+        <Callout key={r.key} tone="danger" title={`${r.name} was not added`} onDismiss={() => images.dismissRejection(r.key)}>
+          {r.reason.charAt(0).toUpperCase() + r.reason.slice(1)}.
+        </Callout>
+      ))}
+      <div className="visually-hidden" role="status" aria-live="polite">
+        {images.announcement}
+      </div>
       {error && (
         <Callout tone="danger" title="Your change was not saved." onDismiss={() => setError(undefined)}>
           {error}
@@ -296,10 +390,20 @@ export function PageEdit({ space, path, isNew = false }: Props) {
         open={discarding}
         onOpenChange={setDiscarding}
         title="Discard your changes?"
-        description="Your edits to this page will be lost."
+        description={
+          current.attachments?.length
+            ? 'Your edits to this page will be lost. Images added in this edit will be discarded.'
+            : 'Your edits to this page will be lost.'
+        }
         confirmLabel="Discard"
         cancelLabel="Keep editing"
         onConfirm={leave}
+      />
+      <ImageDescriptionDialog
+        request={images.describing}
+        position={images.describePosition}
+        onDone={images.describe}
+        returnFocusTo={editorContent}
       />
       <Dialog
         open={!!signInAgain}

@@ -32,6 +32,16 @@ public sealed class CopernicaOptionsValidator : IValidateOptions<CopernicaOption
             errors.Add("Copernica:MaxRenderBytes must be positive.");
         }
 
+        if (options.Attachments.MaxBytes <= 0)
+        {
+            errors.Add("Copernica:Attachments:MaxBytes must be positive.");
+        }
+
+        if (options.Attachments.MaxPendingBytesPerUser <= options.Attachments.MaxBytes)
+        {
+            errors.Add("Copernica:Attachments:MaxPendingBytesPerUser must be greater than Copernica:Attachments:MaxBytes.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.FallbackEmailDomain))
         {
             errors.Add("Copernica:FallbackEmailDomain must be set.");

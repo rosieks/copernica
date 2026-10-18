@@ -93,6 +93,9 @@ builder.Services.AddSingleton<PageWriter>();
 builder.Services.AddSingleton<HistoryService>();
 builder.Services.AddScoped<PageWriteService>();
 builder.Services.AddScoped<DiscussionService>();
+builder.Services.AddScoped<Copernica.Attachments.PendingImageStore>();
+builder.Services.AddSingleton<Copernica.Attachments.ReferencedImages>();
+builder.Services.AddHostedService<Copernica.Attachments.PendingImageCleanup>();
 
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 

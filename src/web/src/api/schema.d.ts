@@ -500,6 +500,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spaces/{spaceId}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload an image for a page edit as a pending image (003)
+         * @description Requires write permission on the space. The image is committed only when the page is
+         *     saved with its id in `attachments` and still referenced in the text.
+         */
+        post: {
+            parameters: {
+                query: {
+                    page: string;
+                };
+                header?: never;
+                path: {
+                    spaceId: components["parameters"]["SpaceId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Stored */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PendingUpload"];
+                    };
+                };
+                /** @description `type` = `validation`: no or several files, invalid page */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `no-write-permission` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["NotFound"];
+                /** @description `type` = `attachment-too-large` (image or pending quota) */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `unsupported-image` */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A pending image; only its owner can read it (003) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Image bytes (`no-store` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/render": {
         parameters: {
             query?: never;
@@ -523,6 +640,8 @@ export interface paths {
                         spaceId: string;
                         path: string;
                         markdown: string;
+                        /** @description Pending images of the edit, shown from their upload URL (003) */
+                        attachments?: string[];
                     };
                 };
             };
@@ -892,6 +1011,22 @@ export interface components {
                 required?: boolean;
                 registered?: boolean;
             };
+            /** @description Only on GET /me — limits for pasted images (003) */
+            uploads?: {
+                maxBytes?: number;
+                formats?: string[];
+            };
+        };
+        PendingUpload: {
+            id: string;
+            /** @description Space-relative path the image will be committed to */
+            repositoryPath: string;
+            /** @description Link relative to the page */
+            link: string;
+            name: string;
+            contentType: string;
+            size: number;
+            previewUrl: string;
         };
         Space: {
             id: string;
@@ -933,6 +1068,8 @@ export interface components {
             base?: components["schemas"]["PageVersionRef"];
             markdown: string;
             message: string;
+            /** @description Pending images of this edit (003). Only the user's own images for this space and page that are referenced in `markdown` are committed, in the same commit. A path that already exists gives 409 `attachment-exists`. */
+            attachments?: string[];
         };
         SaveResult: {
             version: components["schemas"]["PageVersionRef"];

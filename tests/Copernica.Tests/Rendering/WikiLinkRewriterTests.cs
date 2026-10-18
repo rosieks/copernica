@@ -79,4 +79,44 @@ public sealed class WikiLinkRewriterTests
     {
         Assert.Contains("rel=\"noopener noreferrer\"", Render("[x](https://example.test)"));
     }
+
+    [Fact]
+    public void Root_relative_images_resolve_from_the_space_root()
+    {
+        // Azure DevOps Wiki style (003 FR-016); also on Linux, where .NET parses "/x" as a file URI.
+        var html = Render("![x](/.attachments/x.png)");
+
+        Assert.Contains("src=\"/api/spaces/handbook/files/.attachments/x.png?version=abc123\"", html);
+    }
+
+    [Fact]
+    public void Root_relative_images_cannot_escape_the_space()
+    {
+        var html = Render("![y](/../secret.png)");
+
+        Assert.DoesNotContain("secret.png", html);
+    }
+
+    [Fact]
+    public void Pending_images_are_shown_from_their_upload()
+    {
+        var rewriter = new WikiLinkRewriter("handbook", "guides/setup.md", "abc123", Pages.Contains,
+            new Dictionary<string, string> { [".attachments/new.png"] = "/api/uploads/0123" });
+
+        var html = new MarkdownRenderer().Render("![n](../.attachments/new.png) ![o](../img/old.png)", rewriter);
+
+        Assert.Contains("src=\"/api/uploads/0123\"", html);
+        Assert.Contains("src=\"/api/spaces/handbook/files/img/old.png?version=abc123\"", html);
+    }
+
+    [Theory]
+    [InlineData("/x", false)]
+    [InlineData("//cdn.example.com/x.png", true)]
+    [InlineData("https://example.com/x.png", true)]
+    [InlineData("mailto:a@example.com", true)]
+    [InlineData("x.png", false)]
+    public void External_targets_are_recognized(string target, bool external)
+    {
+        Assert.Equal(external, WikiLinkRewriter.IsExternal(target));
+    }
 }

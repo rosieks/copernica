@@ -17,6 +17,63 @@ namespace Copernica.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("Copernica.Attachments.PendingImage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastUsedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PagePath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepositoryPath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SpaceId")
+                        .IsRequired()
+                        .HasMaxLength(63)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastUsedAt");
+
+                    b.HasIndex("SpaceId", "RepositoryPath")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "SpaceId", "PagePath");
+
+                    b.ToTable("pending_images", (string)null);
+                });
+
             modelBuilder.Entity("Copernica.Data.DelegatedToken", b =>
                 {
                     b.Property<string>("CacheKey")
@@ -170,6 +227,15 @@ namespace Copernica.Data.Migrations
                     b.HasIndex("SpaceId", "PagePath");
 
                     b.ToTable("discussions", (string)null);
+                });
+
+            modelBuilder.Entity("Copernica.Attachments.PendingImage", b =>
+                {
+                    b.HasOne("Copernica.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Copernica.Discussions.Comment", b =>
