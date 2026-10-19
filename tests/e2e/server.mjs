@@ -97,6 +97,22 @@ const service = createRemote('service', {
   'docs/api.md': '# Payments API\n\nEndpoints.\n',
 });
 
+// 005 fixture (specs/005-page-tree-management/quickstart.md, Setup): a space of its own, so
+// moves and deletes do not disturb the other specs.
+const tree = createRemote('tree', {
+  'index.md': '# Tree Home\n\nSee [Setup](guides/setup.md), [the API](/reference/api.md) and [FAQ](wiki:tree/guides/faq.md).\n',
+  'guides/setup.md': '# Setup\n\nInstall the tools described in [the API](../reference/api.md).\n\n![shot](../.attachments/s.svg)\n\n' +
+    'This sentence is long enough to comment on.\n',
+  'guides/faq.md': '# FAQ\n\nRead [install steps](setup.md#install). Inline code `setup.md` stays.\n',
+  'guides/tiny.md': '[s](setup.md)\n',
+  'reference/api.md': '# API\n\nEndpoints.\n',
+  'reference/.order': 'api\n',
+  '.attachments/s.svg': '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>',
+  ...Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`archive/2019/page-${String(i).padStart(2, '0')}.md`, `# Archived ${i}\n`])),
+  'archive/2019/a.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+  'archive/2019/b.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+});
+
 const hash = spawnSync('dotnet', [...runArgs, '--', 'hash-password'], {
   input: 'secret\n',
   encoding: 'utf8',
@@ -130,9 +146,12 @@ const env = {
   Copernica__Spaces__2__Id: 'notes',
   Copernica__Spaces__2__DisplayName: 'Notes',
   Copernica__Spaces__2__Attachments__Path: '{page}.assets',
+  Copernica__Spaces__3__Id: 'tree',
+  Copernica__Spaces__3__DisplayName: 'Tree Lab',
+  Copernica__Spaces__3__RemoteUrl: tree.bare,
 };
 
-writeFileSync(join(here, '.e2e-state.json'), JSON.stringify({ work, handbook, service }, null, 2));
+writeFileSync(join(here, '.e2e-state.json'), JSON.stringify({ work, handbook, service, tree }, null, 2));
 
 const server = spawn('dotnet', runArgs, { env, stdio: 'inherit' });
 const stop = () => server.kill();

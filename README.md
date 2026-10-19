@@ -100,7 +100,21 @@ All settings are listed in
   other authors. A failed save shows the reason next to your text, which is kept.
 - **Commenting:** select text in a page and choose **Comment** next to the selection, or
   press `c`.
-- **Page actions:** the **⋯** menu offers *Copy link*, *Download Markdown* and *Delete page…*.
+- **Page actions:** the **⋯** menu offers *Copy link*, *Download Markdown*, *Rename…*,
+  *Move…* and *Delete page…*.
+- **Organizing pages:** every page and folder in the tree has an actions menu (hover the row
+  and choose **⋯**, right-click it, or press `Shift`+`F10`):
+  - **New page here…** and **New folder…** (a folder is created with its first page);
+  - **Rename…** and **Move…**, also for whole folders: each change is one commit, links to
+    the moved pages in the same space are updated in that commit, and old addresses lead
+    to the new location. History and discussions stay with the page;
+  - **Move up** / **Move down**, or drag items to reorder them. The order is kept in
+    `.order` files, compatible with Azure DevOps Wiki;
+  - **Delete…**: a folder is deleted with everything in it after confirming the number of
+    pages. Deleted pages stay in the repository history.
+
+  With a mouse you can also drag a page or folder onto another folder (or onto the space
+  name) to move it there.
 - **Images:** paste a screenshot or drop image files into the editor, or use **Insert image**.
   The wiki asks for a short description and saves the images together with the page in one
   commit. By default they go to `.attachments/` at the root of the space (as in Azure
@@ -122,8 +136,11 @@ All settings are listed in
 | `Ctrl`/`⌘` + `Enter` | Post a comment or reply |
 | `Esc` | Close a dialog, menu or panel |
 | `F8` | Go to notifications |
+| `Shift` + `F10` | Open the actions of the focused page or folder in the tree |
+| `F2` | Rename the focused page or folder in the tree |
+| `Delete` | Delete the focused page or folder in the tree |
 
-Single-key shortcuts (`e`, `c`, `?`) can be turned off in **Profile → Keyboard
+Single-key shortcuts (`e`, `c`, `?`, and `F2` / `Delete` in the tree) can be turned off in **Profile → Keyboard
 shortcuts**, or in the shortcut list. They never fire while you type in a field. The
 setting is stored in your browser only.
 

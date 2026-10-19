@@ -3,7 +3,7 @@ import { useSingleKeyShortcuts } from './preference';
 import { useRegisteredShortcuts, type Shortcut, type ShortcutGroup } from './useShortcuts';
 import './shortcuts.css';
 
-const GROUPS: ShortcutGroup[] = ['Global', 'Page', 'Editor', 'Discussions'];
+const GROUPS: ShortcutGroup[] = ['Global', 'Page', 'Page tree', 'Editor', 'Discussions'];
 
 /** Always available; overlays close with Escape (Radix). */
 const BUILT_IN: Pick<Shortcut, 'label' | 'description' | 'group' | 'single'>[] = [

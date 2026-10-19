@@ -199,7 +199,10 @@ public static class PageWriteEndpoints
     }
 }
 
-public sealed record SaveResult(PageVersionRef Version, bool Merged, IReadOnlyList<string> MergedAuthors);
+/// <param name="Path">Where the page was saved; differs from the request when the page was moved meanwhile (005 research R6).</param>
+public sealed record SaveResult(PageVersionRef Version, bool Merged, IReadOnlyList<string> MergedAuthors, string Path);
+
+public sealed record WriteIdentity(GitCredentials? Credentials, CommitAuthor? Author, IResult? Problem);
 
 /// <summary>Maps <see cref="PageWriter"/> outcomes to HTTP results.</summary>
 public sealed class PageWriteService(
@@ -210,38 +213,48 @@ public sealed class PageWriteService(
     SpaceSynchronizer synchronizer,
     ILogger<PageWriteService> logger)
 {
-    public async Task<IResult> WriteAsync(SpaceAccess access, PageChange change, CancellationToken cancellationToken)
+    /// <summary>The user's git credentials and commit identity for a write, or the problem that prevents it.</summary>
+    public async Task<WriteIdentity> PrepareAsync(SpaceAccess access, CancellationToken cancellationToken)
     {
         var space = access.Space!;
         var user = access.User!;
         if (registry.GetStatus(space).State == Data.SpaceState.Unavailable)
         {
-            return SpacesEndpoints.SpaceUnavailable(space);
+            return new WriteIdentity(null, null, SpacesEndpoints.SpaceUnavailable(space));
         }
 
-        GitCredentials credentials;
         try
         {
-            credentials = await providers.For(space).GetUserGitCredentialsAsync(user, space, cancellationToken);
+            var credentials = await providers.For(space).GetUserGitCredentialsAsync(user, space, cancellationToken);
+            return new WriteIdentity(credentials, new CommitAuthor(user.DisplayName, users.CommitEmail(user)), null);
         }
         catch (Hosting.AzureDevOps.PatRequiredException ex)
         {
-            return ProblemTypes.Forbidden("pat-required", "A personal access token is required.", ex.Message);
+            return new WriteIdentity(null, null, ProblemTypes.Forbidden("pat-required", "A personal access token is required.", ex.Message));
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ReauthenticationRequiredException)
         {
             logger.LogWarning(ex, "Could not obtain git credentials for user {UserId} on space {SpaceId}.", user.Id, space.Id);
-            return ProblemTypes.Unavailable("hosting-unavailable", "The git hosting platform is not available.", "Your changes were not saved. Try again later.");
+            return new WriteIdentity(null, null, ProblemTypes.Unavailable("hosting-unavailable", "The git hosting platform is not available.", "Your changes were not saved. Try again later."));
+        }
+    }
+
+    public async Task<IResult> WriteAsync(SpaceAccess access, PageChange change, CancellationToken cancellationToken)
+    {
+        var space = access.Space!;
+        var identity = await PrepareAsync(access, cancellationToken);
+        if (identity.Problem is not null)
+        {
+            return identity.Problem;
         }
 
-        var author = new CommitAuthor(user.DisplayName, users.CommitEmail(user));
-        var outcome = await writer.SaveAsync(space, change, author, credentials, cancellationToken);
+        var outcome = await writer.SaveAsync(space, change, identity.Author!, identity.Credentials!, cancellationToken);
 
         switch (outcome)
         {
             case SaveOutcome.Saved saved:
                 await synchronizer.MarkHeadAsync(space, saved.Version.CommitId, cancellationToken);
-                return TypedResults.Ok(new SaveResult(saved.Version, saved.Merged, saved.MergedAuthors));
+                return TypedResults.Ok(new SaveResult(saved.Version, saved.Merged, saved.MergedAuthors, saved.Path));
             case SaveOutcome.Conflict conflict:
                 return Results.Problem(
                     title: "The page was changed by someone else.",
@@ -264,6 +277,13 @@ public sealed class PageWriteService(
                     type: ProblemTypes.For("attachment-exists"));
             case SaveOutcome.PageExists:
                 return Results.Problem(title: "A page with this path already exists.", statusCode: StatusCodes.Status409Conflict, type: ProblemTypes.For("page-exists"));
+            case SaveOutcome.PageDeleted deleted:
+                return Results.Problem(
+                    title: "The page was deleted by someone else.",
+                    detail: "Your text was not saved. You can save it as a new page.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    type: ProblemTypes.For("page-deleted"),
+                    extensions: new Dictionary<string, object?> { ["mineSource"] = deleted.MineSource });
             case SaveOutcome.PageMissing:
                 return ProblemTypes.NotFound("The page does not exist in the version the edit started from.");
             case SaveOutcome.InvalidBase:

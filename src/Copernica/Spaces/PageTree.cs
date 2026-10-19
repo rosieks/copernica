@@ -18,8 +18,11 @@ public static class PageTreeBuilder
     public static TreeNode Build(IEnumerable<string> paths, Func<string, string> readContent) =>
         Build(paths, paths.Where(IsPage).ToDictionary(p => p, p => PageTitle.Resolve(readContent(p), p), StringComparer.Ordinal));
 
-    /// <summary>Builds the tree with already resolved titles.</summary>
-    public static TreeNode Build(IEnumerable<string> paths, IReadOnlyDictionary<string, string> titles)
+    /// <summary>
+    /// Builds the tree with already resolved titles. <paramref name="orders"/> gives a folder's
+    /// <c>.order</c> (folder path → order; <c>""</c> is the root), which orders its children (005 FR-019).
+    /// </summary>
+    public static TreeNode Build(IEnumerable<string> paths, IReadOnlyDictionary<string, string> titles, Func<string, FolderOrder?>? orders = null)
     {
         var root = new MutableNode("", "");
         foreach (var path in paths.Where(IsPage))
@@ -37,10 +40,20 @@ public static class PageTreeBuilder
             node.Pages.Add(new TreeNode(segments[^1], path, titles.GetValueOrDefault(path) ?? PageTitle.FromFileName(path), Page, null));
         }
 
-        return root.ToNode();
+        return root.ToNode(orders ?? (_ => null));
     }
 
     public static bool IsPage(string path) => path.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether <paramref name="path"/> is a folder's order file (never a page).</summary>
+    public static bool IsOrderFile(string path) => SpacePaths.Name(path) == SpacePaths.OrderFileName;
+
+    /// <summary>Folders before pages, each case-insensitively by name: the order without an <c>.order</c> file.</summary>
+    public static IReadOnlyList<TreeNode> DefaultOrder(IEnumerable<TreeNode> children) =>
+        children
+            .OrderBy(c => c.Kind == Page ? 1 : 0)
+            .ThenBy(c => c.Name, NameOrder).ThenBy(c => c.Name, StringComparer.Ordinal)
+            .ToList();
 
     private sealed class MutableNode(string name, string path)
     {
@@ -48,13 +61,14 @@ public static class PageTreeBuilder
 
         public List<TreeNode> Pages { get; } = [];
 
-        public TreeNode ToNode()
+        public TreeNode ToNode(Func<string, FolderOrder?> orders)
         {
-            var children = Folders.Values
-                .OrderBy(f => f.Name, NameOrder).ThenBy(f => f.Name, StringComparer.Ordinal)
-                .Select(f => f.ToNode())
-                .Concat(Pages.OrderBy(p => p.Name, NameOrder).ThenBy(p => p.Name, StringComparer.Ordinal))
-                .ToList();
+            IReadOnlyList<TreeNode> children = DefaultOrder(Folders.Values.Select(f => f.ToNode(orders)).Concat(Pages));
+            if (orders(path) is { } order)
+            {
+                children = order.Sort(children, c => FolderOrder.EntryFor(c.Name, c.Kind == Page), c => c.Kind == Page);
+            }
+
             return new TreeNode(Name, path, null, Folder, children);
         }
 
@@ -72,7 +86,8 @@ public sealed class PageTreeService(MirrorRepository mirror, IMemoryCache cache)
         cache.GetOrCreate((nameof(PageTreeService), space.Id, commitId), entry =>
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(30);
-            var blobs = mirror.ListBlobs(space, commitId, space.Folder)
+            var all = mirror.ListBlobs(space, commitId, space.Folder);
+            var blobs = all
                 .Select(b => (SpacePath: space.ToSpacePath(b.Path)!, Blob: b))
                 .Where(b => b.SpacePath is not null && PageTreeBuilder.IsPage(b.SpacePath))
                 .ToDictionary(b => b.SpacePath, b => b.Blob, StringComparer.Ordinal);
@@ -105,7 +120,18 @@ public sealed class PageTreeService(MirrorRepository mirror, IMemoryCache cache)
                 titles[path] = title;
             }
 
-            return PageTreeBuilder.Build(blobs.Keys, titles);
+            // Folder order files (005 FR-019); unreadable ones are ignored.
+            var orderBlobs = all
+                .Select(b => (SpacePath: space.ToSpacePath(b.Path), Blob: b))
+                .Where(b => b.SpacePath is not null && PageTreeBuilder.IsOrderFile(b.SpacePath) && b.Blob.Size <= FolderOrder.MaxBytes)
+                .ToDictionary(b => SpacePaths.Parent(b.SpacePath!), b => b.Blob.Id, StringComparer.Ordinal);
+            var orderContents = orderBlobs.Count == 0 ? new Dictionary<string, byte[]>() : mirror.ReadBlobs(space, orderBlobs.Values);
+            var orders = orderBlobs
+                .Select(o => (Folder: o.Key, Order: orderContents.TryGetValue(o.Value, out var bytes) ? FolderOrder.Parse(bytes) : null))
+                .Where(o => o.Order is not null)
+                .ToDictionary(o => o.Folder, o => o.Order!, StringComparer.Ordinal);
+
+            return PageTreeBuilder.Build(blobs.Keys, titles, folder => orders.GetValueOrDefault(folder));
         })!;
 
     /// <summary>Space-relative paths of all pages at the commit.</summary>

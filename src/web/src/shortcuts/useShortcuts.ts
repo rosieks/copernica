@@ -1,7 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { isSingleKeyEnabled } from './preference';
 
-export type ShortcutGroup = 'Global' | 'Page' | 'Editor' | 'Discussions';
+export type ShortcutGroup = 'Global' | 'Page' | 'Page tree' | 'Editor' | 'Discussions';
 
 export interface Shortcut {
   /** `KeyboardEvent.key` for single keys ("e", "?"); for modifier shortcuts the key pressed with Ctrl/⌘ ("s", "Enter"). */
@@ -13,6 +13,8 @@ export interface Shortcut {
   /** Human-readable keys for help and tooltips, e.g. "Ctrl/⌘ S". */
   label: string;
   handler: (event: KeyboardEvent) => void;
+  /** Listed in the help only: a component handles the key itself (e.g. on the focused tree item). */
+  documentOnly?: boolean;
 }
 
 interface Entry {
@@ -48,6 +50,7 @@ export function matchShortcut(event: KeyboardEvent, candidates: readonly Shortcu
   // Search from the most recently registered so the innermost screen wins.
   for (let i = candidates.length - 1; i >= 0; i--) {
     const shortcut = candidates[i]!;
+    if (shortcut.documentOnly) continue;
     if (shortcut.single) {
       if (!singleKeyEnabled || modifier || event.altKey || isEditableTarget(event.target) || inOverlay(event.target)) continue;
       if (event.key === shortcut.key) return shortcut;
@@ -82,14 +85,14 @@ function ensureListening() {
 export function useShortcut(shortcut: Omit<Shortcut, 'handler'> & { handler: (event: KeyboardEvent) => void; enabled?: boolean }) {
   const handler = useRef(shortcut.handler);
   handler.current = shortcut.handler;
-  const { key, single, description, group, label, enabled = true } = shortcut;
+  const { key, single, description, group, label, documentOnly, enabled = true } = shortcut;
 
   useEffect(() => {
     if (!enabled) return;
     ensureListening();
     const entry: Entry = {
       id: nextId++,
-      shortcut: { key, single, description, group, label, handler: (event) => handler.current(event) },
+      shortcut: { key, single, description, group, label, documentOnly, handler: (event) => handler.current(event) },
     };
     entries = [...entries, entry];
     emit();
@@ -97,7 +100,7 @@ export function useShortcut(shortcut: Omit<Shortcut, 'handler'> & { handler: (ev
       entries = entries.filter((e) => e.id !== entry.id);
       emit();
     };
-  }, [key, single, description, group, label, enabled]);
+  }, [key, single, description, group, label, documentOnly, enabled]);
 }
 
 function subscribe(listener: () => void) {

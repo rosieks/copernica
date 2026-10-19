@@ -47,3 +47,70 @@
 .level-6 { --indent: 5; }
 .level-7 { --indent: 6; }
 .level-8 { --indent: 7; }
+
+/* Row actions (005 contracts/ui.md §1): shown on hover, focus and while the menu is open. */
+.tree-item__actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.tree-item:hover .tree-item__actions,
+.tree-item:focus-visible .tree-item__actions,
+.tree-item--menu .tree-item__actions {
+  opacity: 1;
+}
+
+.tree-item__actions:hover {
+  background: var(--color-bg-active, var(--color-bg-hover));
+  color: var(--color-text);
+}
+
+@media (hover: none) {
+  .tree-item__actions {
+    opacity: 1;
+  }
+}
+
+/* Drag and drop (005 contracts/ui.md §6). */
+/* Marked by an outline, not transparency, so its text keeps AA contrast. */
+.tree-item--dragging {
+  outline: 1px dashed var(--color-border);
+  outline-offset: -1px;
+}
+
+.tree-item--drop-into {
+  outline: 2px solid var(--color-accent-solid);
+  outline-offset: -2px;
+  background: var(--color-accent-subtle);
+}
+
+.tree-item--drop-before {
+  box-shadow: inset 0 2px 0 var(--color-accent-solid);
+}
+
+.tree-item--drop-after {
+  box-shadow: inset 0 -2px 0 var(--color-accent-solid);
+}
+
+.tree-item--drop-invalid {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.space-nav__head--drop {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--color-accent-solid);
+  outline-offset: 2px;
+}

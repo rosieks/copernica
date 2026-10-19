@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react';
-import { DotsHorizontalIcon, DownloadIcon, Link2Icon, TrashIcon } from '@radix-ui/react-icons';
+import { ArrowRightIcon, DotsHorizontalIcon, DownloadIcon, Link2Icon, Pencil1Icon, TrashIcon } from '@radix-ui/react-icons';
 import { encodePath } from '../api/client';
 import { fileApi, spaceRoute } from '../routes';
 import { IconButton, Menu, Toolbar, useToast } from '../ui';
@@ -28,12 +28,15 @@ interface Props {
   isCurrent: boolean;
   canDelete: boolean;
   onDelete: () => void;
+  /** Rename and move, with the tree's dialogs (005 FR-003); omitted when the page cannot be managed. */
+  onRename?: () => void;
+  onMove?: () => void;
   /** The "more actions" button; focus returns there from dialogs opened by this menu. */
   triggerRef: RefObject<HTMLButtonElement | null>;
 }
 
 /** The page "more actions" menu (FR-022, FR-023). */
-export function PageActions({ spaceId, path, commitId, isCurrent, canDelete, onDelete, triggerRef }: Props) {
+export function PageActions({ spaceId, path, commitId, isCurrent, canDelete, onDelete, onRename, onMove, triggerRef }: Props) {
   const { notify } = useToast();
   const [fallbackUrl, setFallbackUrl] = useState<string>();
   const fileName = path.split('/').pop() ?? 'page.md';
@@ -64,6 +67,17 @@ export function PageActions({ spaceId, path, commitId, isCurrent, canDelete, onD
               Download Markdown
             </a>
           </Menu.Item>
+          {(onRename || onMove) && <Menu.Separator />}
+          {onRename && (
+            <Menu.Item icon={<Pencil1Icon />} onSelect={onRename}>
+              Rename…
+            </Menu.Item>
+          )}
+          {onMove && (
+            <Menu.Item icon={<ArrowRightIcon />} onSelect={onMove}>
+              Move…
+            </Menu.Item>
+          )}
           {canDelete && (
             <>
               <Menu.Separator />

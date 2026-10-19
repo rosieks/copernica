@@ -1,5 +1,6 @@
 using Copernica.Auth;
 using Copernica.Data;
+using Copernica.Git;
 using Copernica.Hosting;
 using Copernica.Hosting.AzureDevOps;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,8 @@ public sealed record SpaceDto(string Id, string DisplayName, string State, DateT
 
 public static class SpacesEndpoints
 {
+    public const string TreeCommitHeader = "X-Copernica-Commit";
+
     public static RouteGroupBuilder MapSpacesEndpoints(this RouteGroupBuilder api)
     {
         api.MapGet("/me", async (HttpContext context, IOptions<AzureDevOpsOptions> azureDevOps, IOptions<Configuration.CopernicaOptions> copernica, UserPatStore pats) =>
@@ -76,6 +79,8 @@ public static class SpacesEndpoints
             return SpaceUnavailable(access.Space!);
         }
 
+        // The commit the tree was built from: the base of tree operations (005 contracts/api.md).
+        context.Response.Headers[TreeCommitHeader] = head;
         return Results.Ok(trees.GetTree(access.Space!, head));
     }
 
@@ -86,7 +91,8 @@ public static class SpacesEndpoints
         bool? source,
         HttpContext context,
         PermissionService permissions,
-        PageService pages)
+        PageService pages,
+        MoveResolver moves)
     {
         var access = await permissions.RequireReadAsync(context, spaceId);
         if (access.Problem is not null)
@@ -104,6 +110,28 @@ public static class SpacesEndpoints
         {
             PageLookupStatus.Found => Results.Ok(lookup.Page),
             PageLookupStatus.SpaceUnavailable => SpaceUnavailable(access.Space!),
+            _ when string.IsNullOrEmpty(version) => Missing(access.Space!, normalized, pages, moves),
+            _ => ProblemTypes.NotFound(),
+        };
+    }
+
+    /// <summary>A page that is not at the head: moved (with its current path), deleted, or unknown (005 research R4).</summary>
+    private static IResult Missing(Space space, string path, PageService pages, MoveResolver moves)
+    {
+        var head = pages.GetHead(space);
+        return (head is null ? new MoveResolution.Unknown() : moves.Resolve(space, head, path)) switch
+        {
+            MoveResolution.Moved moved => Results.Problem(
+                title: "This page has moved.",
+                statusCode: StatusCodes.Status404NotFound,
+                type: ProblemTypes.For("page-moved"),
+                extensions: new Dictionary<string, object?> { ["currentPath"] = moved.Path, ["movedIn"] = moved.MovedIn }),
+            MoveResolution.Deleted deleted => Results.Problem(
+                title: "Not found.",
+                detail: "The page was deleted.",
+                statusCode: StatusCodes.Status404NotFound,
+                type: ProblemTypes.For("not-found"),
+                extensions: new Dictionary<string, object?> { ["deletedIn"] = deleted.DeletedIn, ["lastVersion"] = deleted.LastVersion }),
             _ => ProblemTypes.NotFound(),
         };
     }

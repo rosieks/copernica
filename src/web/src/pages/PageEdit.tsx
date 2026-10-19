@@ -14,6 +14,7 @@ import { joinNames, shortCommit } from '../format';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { WIDE, useMediaQuery } from '../layout/useMediaQuery';
 import { pageApi, spaceRoute } from '../routes';
+import { copyText } from './PageActions';
 import { useShortcut } from '../shortcuts';
 import { AlertDialog, Button, Callout, Dialog, Field, Tabs, useToast } from '../ui';
 import { ConflictView, type EditConflict } from './ConflictView';
@@ -99,6 +100,8 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   const [error, setError] = useState<string>();
   const [messageError, setMessageError] = useState<string>();
   const [conflict, setConflict] = useState<EditConflict>();
+  /** The page was deleted by someone else while editing (005 research R6). */
+  const [deletedMeanwhile, setDeletedMeanwhile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [signInAgain, setSignInAgain] = useState<'local' | 'challenge'>();
@@ -205,13 +208,22 @@ export function PageEdit({ space, path, isNew = false }: Props) {
         },
       });
       clearDraft(spaceId, path);
+      // The page may have been moved meanwhile; the save then landed at its new path (005 R6).
+      const savedPath = result.path ?? path;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['page', spaceId, path] }),
+        queryClient.invalidateQueries({ queryKey: ['page', spaceId, savedPath] }),
         queryClient.invalidateQueries({ queryKey: ['tree', spaceId] }),
         queryClient.invalidateQueries({ queryKey: ['history', spaceId, path] }),
+        queryClient.invalidateQueries({ queryKey: ['history', spaceId, savedPath] }),
         queryClient.removeQueries({ queryKey: ['page-source', spaceId, path] }),
       ]);
       const authors = result.mergedAuthors ?? [];
+      if (savedPath !== path) {
+        notify({ tone: 'info', title: `Saved. The page had been moved to “${savedPath}”.` });
+        navigate(spaceRoute(spaceId, savedPath), { replace: true });
+        return;
+      }
       if (result.merged && authors.length > 0) {
         notify({ tone: 'info', title: `Saved — merged with changes by ${joinNames(authors)}` });
       } else {
@@ -221,6 +233,9 @@ export function PageEdit({ space, path, isNew = false }: Props) {
     } catch (e) {
       if (e instanceof ApiError && e.type === 'edit-conflict') {
         setConflict(e.problem as unknown as EditConflict);
+      } else if (e instanceof ApiError && e.type === 'page-deleted') {
+        saveDraft(spaceId, path, toSave);
+        setDeletedMeanwhile(true);
       } else if (isUnauthenticated(e)) {
         saveDraft(spaceId, path, toSave);
         setSignInAgain('local');
@@ -373,6 +388,34 @@ export function PageEdit({ space, path, isNew = false }: Props) {
         <Callout tone="danger" title="Your change was not saved." onDismiss={() => setError(undefined)}>
           {error}
         </Callout>
+      )}
+      {deletedMeanwhile && (
+        <Callout
+          tone="danger"
+          title="The page was deleted by someone else. Your text was not saved."
+          actions={
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  // Keep the text as the draft of a new page at the same path.
+                  clearDraft(spaceId, path);
+                  saveDraft(spaceId, path, { markdown: current.markdown, message: `Create ${path}`, attachments: current.attachments });
+                  navigate(`/s/${spaceId}/-/new/${path.split('/').map(encodeURIComponent).join('/')}`);
+                }}
+              >
+                Save as a new page
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => notify(await copyText(current.markdown) ? { tone: 'success', title: 'Text copied' } : { tone: 'danger', title: 'The text could not be copied.' })}
+              >
+                Copy text
+              </Button>
+            </>
+          }
+        />
       )}
       <div className="editor-footer">
         <Field

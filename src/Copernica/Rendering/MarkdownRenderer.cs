@@ -26,10 +26,27 @@ public sealed class MarkdownRenderer
         .Use<BlockContainersExtension>()
         .Build();
 
+    /// <summary>The same extensions with exact source spans, for editing link targets in place (005 research R7).</summary>
+    private readonly MarkdownPipeline _spanPipeline = new MarkdownPipelineBuilder()
+        .UsePipeTables()
+        .UseGridTables()
+        .UseTaskLists()
+        .UseAutoLinks()
+        .UseEmphasisExtras()
+        .UseAutoIdentifiers(Markdig.Extensions.AutoIdentifiers.AutoIdentifierOptions.GitHub)
+        .UseFootnotes()
+        .UseDefinitionLists()
+        .Use<BlockContainersExtension>()
+        .UsePreciseSourceLocation()
+        .Build();
+
     private readonly HtmlSanitizer _sanitizer = HtmlSanitizerFactory.Create();
 
     /// <summary>Parses with the same pipeline as <see cref="Render"/> (e.g. to find image references).</summary>
     public MarkdownDocument Parse(string markdown) => Markdown.Parse(markdown, _pipeline);
+
+    /// <summary>Parses like <see cref="Parse"/>, with precise source spans for links and reference definitions.</summary>
+    public MarkdownDocument ParseWithSourceSpans(string markdown) => Markdown.Parse(markdown, _spanPipeline);
 
     /// <summary>
     /// Renders Markdown and sanitizes the result. <paramref name="links"/> rewrites link targets;

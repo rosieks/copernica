@@ -48,9 +48,28 @@ public sealed class DiscussionService(
     CopernicaDbContext db,
     PageService pages,
     MirrorRepository mirror,
+    MoveResolver moves,
     MarkdownRenderer renderer,
     TimeProvider time)
 {
+    /// <summary>Discussions of pages moved through the wiki follow them right away (005 FR-006).</summary>
+    public async Task ApplyMovesAsync(Space space, MoveMap map, CancellationToken cancellationToken)
+    {
+        var paths = map.Files.Keys.Where(PageTreeBuilder.IsPage).ToList();
+        var discussions = await db.Discussions
+            .Where(d => d.SpaceId == space.Id && paths.Contains(d.PagePath))
+            .ToListAsync(cancellationToken);
+        foreach (var discussion in discussions)
+        {
+            discussion.PagePath = map.Map(discussion.PagePath)!;
+        }
+
+        if (discussions.Count > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
     public async Task<IReadOnlyList<DiscussionDto>> ListAsync(Space space, string path, string state, CurrentUser viewer, CancellationToken cancellationToken)
     {
         var head = pages.GetHead(space);
@@ -249,7 +268,7 @@ public sealed class DiscussionService(
         discussion.Anchor.CommitId = head;
     }
 
-    /// <summary>Discussions of pages renamed outside the wiki follow the page (spec edge case).</summary>
+    /// <summary>Discussions of pages renamed outside the wiki follow the page (spec edge case; 005 research R5).</summary>
     private async Task FollowRenamesAsync(Space space, string head, CancellationToken cancellationToken)
     {
         var stale = await db.Discussions
@@ -263,10 +282,9 @@ public sealed class DiscussionService(
                 continue;
             }
 
-            var renamed = mirror.FindRename(space, discussion.Anchor.CommitId, head, space.ToRepositoryPath(discussion.PagePath));
-            if (renamed is not null && space.ToSpacePath(renamed) is { } newPath)
+            if (moves.Resolve(space, head, discussion.PagePath) is MoveResolution.Moved moved)
             {
-                discussion.PagePath = newPath;
+                discussion.PagePath = moved.Path;
                 changed = true;
             }
         }

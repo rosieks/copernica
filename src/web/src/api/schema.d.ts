@@ -173,7 +173,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Page tree at the space's current head */
+        /**
+         * Page tree at the space's current head
+         * @description Children follow the folder's `.order` file when it has one (Azure DevOps Wiki
+         *     compatible), otherwise folders then pages alphabetically (005 FR-019).
+         */
         get: {
             parameters: {
                 query?: never;
@@ -188,6 +192,8 @@ export interface paths {
                 /** @description Tree */
                 200: {
                     headers: {
+                        /** @description Commit the tree was built from; the `base` of tree operations (005) */
+                        "X-Copernica-Commit"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -199,6 +205,224 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/tree/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rename or move a page or folder (005 contracts/api.md §1)
+         * @description One commit by the user, computed on the current branch tip. Links in other pages
+         *     of the space and relative links inside the moved pages are updated in the same
+         *     commit; the message gets `Copernica-Moved: old -> new` trailers. `dryRun: true`
+         *     reports the effects without committing.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    spaceId: components["parameters"]["SpaceId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TreeMoveRequest"];
+                };
+            };
+            responses: {
+                /** @description Moved (or the dry-run effects) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TreeMoveResult"] | components["schemas"]["TreeMovePreview"];
+                    };
+                };
+                /** @description `type` = `validation` | `invalid-move` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `no-write-permission` | `push-rejected` | `pat-required` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `target-exists` | `tree-changed` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `space-unavailable` | `hosting-unavailable` */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/tree/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete a folder with everything in it (005 contracts/api.md §2) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    spaceId: components["parameters"]["SpaceId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TreeDeleteRequest"];
+                };
+            };
+            responses: {
+                /** @description Deleted (or the dry-run counts) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TreeDeleteResult"];
+                    };
+                };
+                /** @description `type` = `validation` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description As for move */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `tree-changed` (extension `pageCount` when the count differs) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description As for move */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/tree/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change an item's position among its siblings (005 contracts/api.md §3) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    spaceId: components["parameters"]["SpaceId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TreeReorderRequest"];
+                };
+            };
+            responses: {
+                /** @description Reordered (creates or edits the folder's `.order`) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            commitId: string;
+                        };
+                    };
+                };
+                /** @description `type` = `validation` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description As for move */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `type` = `tree-changed` */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description As for move */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -244,7 +468,18 @@ export interface paths {
                         "application/json": components["schemas"]["Page"];
                     };
                 };
-                404: components["responses"]["NotFound"];
+                /**
+                 * @description `type` = `not-found` (extension `deletedIn` when the page was deleted) |
+                 *     `page-moved` (extensions `currentPath`, `movedIn`; 005 research R4)
+                 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
             };
         };
         /**
@@ -291,7 +526,11 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description `type` = `edit-conflict` (body is EditConflict) | `page-exists` */
+                /**
+                 * @description `type` = `edit-conflict` (body is EditConflict) | `page-exists` |
+                 *     `page-deleted` (the page was deleted after the edit started; extension
+                 *     `mineSource` carries the text, 005)
+                 */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -1073,10 +1312,68 @@ export interface components {
         };
         SaveResult: {
             version: components["schemas"]["PageVersionRef"];
+            /** @description Where the page was saved. Differs from the request path when the page was moved after the edit started (005 research R6). */
+            path: string;
             /** @description True if non-overlapping concurrent changes were combined */
             merged: boolean;
             /** @description Distinct author names, oldest first, of the commits that changed this page between the edit's base and the branch tip it was merged with. Empty when no change to this page was merged (also when only other pages changed). Added by 002 (contracts/api-changes.md §2). */
             mergedAuthors: string[];
+        };
+        TreeMoveRequest: {
+            /** @description Commit the tree was loaded at (X-Copernica-Commit) */
+            base: string;
+            /** @enum {string} */
+            kind: "page" | "folder";
+            from: string;
+            /** @description New space path; pages end in .md */
+            to: string;
+            /** @description Pages only; new first heading */
+            retitle?: string | null;
+            /** @description Required unless dryRun */
+            message?: string | null;
+            /** @default false */
+            dryRun: boolean;
+        };
+        MovedItem: {
+            from: string;
+            to: string;
+        };
+        TreeMovePreview: {
+            moves: components["schemas"]["MovedItem"][];
+            pageCount: number;
+            fileCount: number;
+            /** @description Other pages whose links will be updated */
+            linkingPages: string[];
+        };
+        TreeMoveResult: {
+            commitId: string;
+            path: string;
+            moves: components["schemas"]["MovedItem"][];
+            updatedPages: string[];
+        };
+        TreeDeleteRequest: {
+            base: string;
+            folder: string;
+            /** @description The confirmed count; required unless dryRun */
+            expectedPageCount?: number | null;
+            message?: string | null;
+            /** @default false */
+            dryRun: boolean;
+        };
+        TreeDeleteResult: {
+            commitId?: string;
+            pageCount: number;
+            fileCount?: number;
+        };
+        TreeReorderRequest: {
+            base: string;
+            /** @description Empty for the space root */
+            folder: string;
+            /** @description Child name as in TreeNode.name */
+            item: string;
+            /** @description Child name the item goes before; null = end */
+            before?: string | null;
+            message?: string | null;
         };
         EditConflict: components["schemas"]["Problem"] & {
             baseSource: string;

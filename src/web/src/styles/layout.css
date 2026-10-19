@@ -160,3 +160,15 @@
 .space-nav__new {
   margin-bottom: var(--space-3);
 }
+
+/* "New page" and the space actions menu (005 contracts/ui.md §1). */
+.space-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.space-nav__actions .space-nav__new {
+  margin-bottom: 0;
+}

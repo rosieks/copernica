@@ -72,3 +72,11 @@ describe('single-key preference', () => {
     expect(readSingleKeyShortcuts()).toBe(true);
   });
 });
+
+describe('documented shortcuts', () => {
+  it('are never matched: the component handles the key itself', () => {
+    const rename: Shortcut = { key: 'F2', single: true, label: 'F2', description: 'Rename', group: 'Page tree', documentOnly: true, handler: () => {} };
+
+    expect(matchShortcut(new KeyboardEvent('keydown', { key: 'F2' }), [rename], true)).toBeUndefined();
+  });
+});

@@ -40,6 +40,13 @@ and to the system temp directory:
 Back up the data directory as a whole. Page content can always be re-fetched from your git
 hosting platform.
 
+**Files written to content repositories:** besides the pages and the images saved with
+them, organizing the page tree can add or edit `.order` files (the page order of a folder,
+in the Azure DevOps Wiki format) in the space's folders. Commits that rename or move pages
+end with `Copernica-Moved: <old path> -> <new path>` lines; the wiki reads them to redirect
+old addresses and to keep page history and discussions attached after a move. Both are
+plain text and stay usable with ordinary git tooling.
+
 ## Authentication and authorization
 
 - **Sign-in:** required for everything except `/health/*` and the static web UI. Anonymous

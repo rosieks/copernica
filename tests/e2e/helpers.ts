@@ -11,7 +11,7 @@ interface Remote {
   clone: string;
 }
 
-export function state(): { work: string; handbook: Remote; service: Remote } {
+export function state(): { work: string; handbook: Remote; service: Remote; tree: Remote } {
   return JSON.parse(readFileSync(join(here, '.e2e-state.json'), 'utf8'));
 }
 

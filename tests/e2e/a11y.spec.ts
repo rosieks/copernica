@@ -16,6 +16,13 @@ async function pasteFile(page: Page, name: string, type: string, base64: string)
   );
 }
 
+/** Opens a tree item's actions menu from the keyboard (005 contracts/ui.md §1). */
+async function openTreeMenu(page: Page, name: string) {
+  await page.getByRole('tree', { name: 'Pages' }).getByRole('treeitem', { name, exact: true }).focus();
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menu').waitFor();
+}
+
 // 1x1 PNG.
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
@@ -73,6 +80,70 @@ const SCREENS: Screen[] = [
     url: '/s/handbook/index.md',
     widths: [viewports.narrow.width],
     prepare: (p) => p.getByRole('button', { name: 'Open navigation' }).click(),
+  },
+  // 005: tree management (quickstart T31).
+  {
+    name: 'Tree item menu',
+    url: '/s/handbook/index.md',
+    widths: [viewports.wide.width],
+    prepare: (p) => openTreeMenu(p, 'Team Handbook'),
+  },
+  {
+    name: 'Rename dialog',
+    url: '/s/handbook/index.md',
+    widths: [viewports.wide.width],
+    prepare: async (p) => {
+      await openTreeMenu(p, 'Team Handbook');
+      await p.getByRole('menuitem', { name: 'Rename…' }).click();
+      await p.getByRole('dialog', { name: 'Rename page' }).getByLabel('Title').fill('Handbook');
+    },
+  },
+  {
+    name: 'Move dialog',
+    url: '/s/handbook/index.md',
+    widths: [viewports.wide.width],
+    prepare: async (p) => {
+      await openTreeMenu(p, 'Team Handbook');
+      await p.getByRole('menuitem', { name: 'Move…' }).click();
+      await p.getByRole('dialog').getByLabel('guides').check();
+    },
+  },
+  {
+    name: 'New folder dialog',
+    url: '/s/handbook/index.md',
+    widths: [viewports.wide.width],
+    prepare: async (p) => {
+      await p.getByRole('button', { name: 'Space actions' }).click();
+      await p.getByRole('menuitem', { name: 'New folder…' }).click();
+    },
+  },
+  {
+    name: 'Delete folder dialog',
+    url: '/s/handbook/index.md',
+    widths: [viewports.wide.width],
+    prepare: async (p) => {
+      await openTreeMenu(p, 'guides');
+      await p.getByRole('menuitem', { name: 'Delete…' }).click();
+      await p.getByRole('alertdialog').getByText(/This removes \d+ pages/).waitFor();
+    },
+  },
+  {
+    name: 'Tree drag in progress',
+    url: '/s/handbook/index.md',
+    widths: [viewports.wide.width],
+    prepare: async (p) => {
+      // A drag that stays in progress while scanning: dragstart and dragover without a drop.
+      const tree = p.getByRole('tree', { name: 'Pages' });
+      await tree.getByRole('treeitem', { name: 'Team Handbook' }).evaluate((source) => {
+        source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }));
+      });
+      await tree.locator('.tree-item--dragging').waitFor();
+      await tree.getByRole('treeitem', { name: 'guides' }).evaluate((target) => {
+        const box = target.getBoundingClientRect();
+        target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: new DataTransfer(), clientY: box.top + box.height / 2 }));
+      });
+      await tree.locator('.tree-item--drop-into').waitFor();
+    },
   },
   {
     name: 'Discussions sheet',

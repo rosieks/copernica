@@ -36,6 +36,11 @@ export function antiforgeryToken(): string | undefined {
 
 /** Fetch wrapper: JSON in/out, antiforgery header on state-changing requests, problem+json errors. */
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  return (await apiWithHeaders<T>(path, init)).data;
+}
+
+/** Like {@link api}, also returning the response headers (e.g. the tree's commit). */
+export async function apiWithHeaders<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<{ data: T; headers: Headers }> {
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
@@ -53,7 +58,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
 
   const response = await fetch(path, { ...init, method, headers, body, credentials: 'same-origin' });
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return { data: undefined as T, headers: response.headers };
 
   const contentType = response.headers.get('Content-Type') ?? '';
   const payload: unknown = contentType.includes('json') ? await response.json() : await response.text();
@@ -66,7 +71,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     throw new ApiError(response.status, problem);
   }
 
-  return payload as T;
+  return { data: payload as T, headers: response.headers };
 }
 
 export function encodePath(path: string): string {
