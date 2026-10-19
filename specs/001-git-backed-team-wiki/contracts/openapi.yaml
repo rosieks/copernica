@@ -78,13 +78,92 @@ paths:
     get:
       summary: Page tree at the space's current head
       parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
+      description: |
+        Children follow the folder's `.order` file when it has one (Azure DevOps Wiki
+        compatible), otherwise folders then pages alphabetically (005 FR-019).
       responses:
         '200':
           description: Tree
+          headers:
+            X-Copernica-Commit:
+              description: Commit the tree was built from; the `base` of tree operations (005)
+              schema: { type: string }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TreeNode' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /spaces/{spaceId}/tree/move:
+    post:
+      summary: Rename or move a page or folder (005 contracts/api.md §1)
+      description: |
+        One commit by the user, computed on the current branch tip. Links in other pages
+        of the space and relative links inside the moved pages are updated in the same
+        commit; the message gets `Copernica-Moved: old -> new` trailers. `dryRun: true`
+        reports the effects without committing.
+      parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TreeMoveRequest' }
+      responses:
+        '200':
+          description: Moved (or the dry-run effects)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/TreeMoveResult' }
+                  - { $ref: '#/components/schemas/TreeMovePreview' }
+        '400': { description: '`type` = `validation` | `invalid-move`' }
+        '403': { description: '`type` = `no-write-permission` | `push-rejected` | `pat-required`' }
+        '409': { description: '`type` = `target-exists` | `tree-changed`' }
+        '503': { description: '`type` = `space-unavailable` | `hosting-unavailable`' }
+
+  /spaces/{spaceId}/tree/delete:
+    post:
+      summary: Delete a folder with everything in it (005 contracts/api.md §2)
+      parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TreeDeleteRequest' }
+      responses:
+        '200':
+          description: Deleted (or the dry-run counts)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TreeDeleteResult' }
+        '400': { description: '`type` = `validation`' }
+        '403': { description: As for move }
+        '409': { description: '`type` = `tree-changed` (extension `pageCount` when the count differs)' }
+        '503': { description: As for move }
+
+  /spaces/{spaceId}/tree/reorder:
+    post:
+      summary: Change an item's position among its siblings (005 contracts/api.md §3)
+      parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TreeReorderRequest' }
+      responses:
+        '200':
+          description: Reordered (creates or edits the folder's `.order`)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [commitId]
+                properties:
+                  commitId: { type: string }
+        '400': { description: '`type` = `validation`' }
+        '403': { description: As for move }
+        '409': { description: '`type` = `tree-changed`' }
+        '503': { description: As for move }
 
   /spaces/{spaceId}/pages/{path}:
     parameters:
@@ -107,7 +186,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Page' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '404':
+          description: |
+            `type` = `not-found` (extensions `deletedIn`, `lastVersion` when the page was deleted) |
+            `page-moved` (extensions `currentPath`, `movedIn`; 005 research R4)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
     put:
       summary: Create or update a page (FR-010..FR-017)
       description: |
@@ -134,7 +219,9 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '409':
           description: |
-            `type` = `edit-conflict` (body is EditConflict) | `page-exists`
+            `type` = `edit-conflict` (body is EditConflict) | `page-exists` |
+            `page-deleted` (the page was deleted after the edit started; extension
+            `mineSource` carries the text, 005)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/EditConflict' }
@@ -540,9 +627,14 @@ components:
 
     SaveResult:
       type: object
-      required: [version, merged, mergedAuthors]
+      required: [version, merged, mergedAuthors, path]
       properties:
         version: { $ref: '#/components/schemas/PageVersionRef' }
+        path:
+          type: string
+          description: >
+            Where the page was saved. Differs from the request path when the page was moved
+            after the edit started (005 research R6).
         merged:
           type: boolean
           description: True if non-overlapping concurrent changes were combined
@@ -554,6 +646,71 @@ components:
             between the edit's base and the branch tip it was merged with. Empty when no
             change to this page was merged (also when only other pages changed). Added by
             002 (contracts/api-changes.md §2).
+
+    TreeMoveRequest:
+      type: object
+      required: [base, kind, from, to]
+      properties:
+        base: { type: string, description: Commit the tree was loaded at (X-Copernica-Commit) }
+        kind: { type: string, enum: [page, folder] }
+        from: { type: string }
+        to: { type: string, description: New space path; pages end in .md }
+        retitle: { type: [string, 'null'], maxLength: 200, description: Pages only; new first heading }
+        message: { type: [string, 'null'], maxLength: 500, description: Required unless dryRun }
+        dryRun: { type: boolean, default: false }
+
+    MovedItem:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string }
+        to: { type: string }
+
+    TreeMovePreview:
+      type: object
+      required: [moves, pageCount, fileCount, linkingPages]
+      properties:
+        moves: { type: array, items: { $ref: '#/components/schemas/MovedItem' } }
+        pageCount: { type: integer }
+        fileCount: { type: integer }
+        linkingPages: { type: array, items: { type: string }, description: Other pages whose links will be updated }
+
+    TreeMoveResult:
+      type: object
+      required: [commitId, path, moves, updatedPages]
+      properties:
+        commitId: { type: string }
+        path: { type: string }
+        moves: { type: array, items: { $ref: '#/components/schemas/MovedItem' } }
+        updatedPages: { type: array, items: { type: string } }
+
+    TreeDeleteRequest:
+      type: object
+      required: [base, folder]
+      properties:
+        base: { type: string }
+        folder: { type: string }
+        expectedPageCount: { type: [integer, 'null'], description: The confirmed count; required unless dryRun }
+        message: { type: [string, 'null'], maxLength: 500 }
+        dryRun: { type: boolean, default: false }
+
+    TreeDeleteResult:
+      type: object
+      required: [pageCount]
+      properties:
+        commitId: { type: string }
+        pageCount: { type: integer }
+        fileCount: { type: integer }
+
+    TreeReorderRequest:
+      type: object
+      required: [base, folder, item]
+      properties:
+        base: { type: string }
+        folder: { type: string, description: Empty for the space root }
+        item: { type: string, description: Child name as in TreeNode.name }
+        before: { type: [string, 'null'], description: Child name the item goes before; null = end }
+        message: { type: [string, 'null'], maxLength: 500 }
 
     EditConflict:
       allOf:

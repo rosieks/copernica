@@ -22,7 +22,11 @@ public abstract record SaveOutcome
     /// Authors (oldest first) of the commits that changed this page between the edit's base and
     /// the tip it was merged with; empty when nothing was merged into this page.
     /// </param>
-    public sealed record Saved(PageVersionRef Version, bool Merged, IReadOnlyList<string> MergedAuthors) : SaveOutcome;
+    /// <param name="Path">
+    /// Space path the page was saved at: differs from the requested path when the page was moved
+    /// after the edit started (005 research R6).
+    /// </param>
+    public sealed record Saved(PageVersionRef Version, bool Merged, IReadOnlyList<string> MergedAuthors, string Path) : SaveOutcome;
 
     public sealed record Conflict(
         string BaseSource,
@@ -38,6 +42,9 @@ public abstract record SaveOutcome
 
     public sealed record PageMissing : SaveOutcome;
 
+    /// <summary>The page was deleted after the edit started; the user's text is handed back (005 research R6).</summary>
+    public sealed record PageDeleted(string MineSource) : SaveOutcome;
+
     public sealed record InvalidBase : SaveOutcome;
 
     public sealed record Rejected(string Reason) : SaveOutcome;
@@ -46,90 +53,37 @@ public abstract record SaveOutcome
 }
 
 /// <summary>
-/// Turns one save into exactly one commit on the space branch, pushed with the user's
-/// credentials (research.md R5). Never force-pushes; mirror refs move only after the push.
+/// Saves, creates and deletes single pages as one commit each through <see cref="RepositoryWriter"/>;
+/// edits made on an older version are three-way merged with the tip (FR-016).
 /// </summary>
-public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, TimeProvider time, ILogger<PageWriter> logger)
+public sealed class PageWriter(RepositoryWriter writer, MoveResolver moves)
 {
-    private const int MaxAttempts = 3;
-    private const string PushRefPrefix = "refs/copernica/push/";
-
     public async Task<SaveOutcome> SaveAsync(Space space, PageChange change, CommitAuthor author, GitCredentials credentials, CancellationToken cancellationToken)
     {
-        using var _ = await registry.LockAsync(space, cancellationToken);
-        return await Task.Run(() => Save(space, change, author, credentials), cancellationToken);
-    }
-
-    private SaveOutcome Save(Space space, PageChange change, CommitAuthor author, GitCredentials credentials)
-    {
-        mirror.EnsureInitialized(space);
-        var repositoryPath = space.ToRepositoryPath(change.Path);
-
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        var outcome = await writer.WriteAsync<SaveOutcome>(space, context => Plan(context, space, change), author, credentials, cancellationToken);
+        return outcome switch
         {
-            try
-            {
-                mirror.Fetch(space, credentials);
-            }
-            catch (LibGit2SharpException ex)
-            {
-                logger.LogWarning(ex, "Fetch before save failed for space {SpaceId}.", space.Id);
-                return new SaveOutcome.HostingUnavailable($"The repository could not be reached: {ex.Message}");
-            }
-
-            using var repo = new Repository(space.MirrorPath);
-            var tip = repo.Refs[space.TrackingRef]?.ResolveToDirectReference()?.Target as Commit;
-            if (tip is null)
-            {
-                return new SaveOutcome.HostingUnavailable($"Branch '{space.Branch}' does not exist.");
-            }
-
-            var plan = Prepare(repo, space, tip, change, repositoryPath, author);
-            if (plan.Outcome is not null)
-            {
-                return plan.Outcome;
-            }
-
-            var candidate = plan.Commit!;
-            if (candidate.Sha == tip.Sha)
-            {
-                // Nothing changed; report the current version.
-                return new SaveOutcome.Saved(VersionOf(tip, repositoryPath), Merged: false, MergedAuthors: []);
-            }
-
-            var push = Publish(repo, space, candidate, credentials);
-            switch (push)
-            {
-                case PushResult.Ok:
-                    repo.Refs.UpdateTarget(repo.Refs[space.TrackingRef], candidate.Id, logMessage: "copernica: save");
-                    return new SaveOutcome.Saved(VersionOf(candidate, repositoryPath), plan.Merged, plan.MergedAuthors);
-                case PushResult.Stale:
-                    logger.LogInformation("Branch of space {SpaceId} moved during save; retrying ({Attempt}/{Max}).", space.Id, attempt, MaxAttempts);
-                    continue;
-                case PushResult.Rejected rejected:
-                    return new SaveOutcome.Rejected(rejected.Reason);
-                case PushResult.Unreachable unreachable:
-                    return new SaveOutcome.HostingUnavailable(unreachable.Reason);
-            }
-        }
-
-        return new SaveOutcome.HostingUnavailable("The branch kept changing while saving. Please try again.");
+            WriteOutcome<SaveOutcome>.Done done => done.Value,
+            WriteOutcome<SaveOutcome>.Failed failed => (SaveOutcome)failed.Reason,
+            WriteOutcome<SaveOutcome>.Rejected rejected => new SaveOutcome.Rejected(rejected.Reason),
+            WriteOutcome<SaveOutcome>.HostingUnavailable unavailable => new SaveOutcome.HostingUnavailable(unavailable.Reason),
+            _ => throw new InvalidOperationException($"Unexpected outcome {outcome}."),
+        };
     }
 
-    private sealed record Plan(Commit? Commit, bool Merged, SaveOutcome? Outcome)
+    private WritePlan<SaveOutcome> Plan(WriteContext context, Space space, PageChange change)
     {
-        public IReadOnlyList<string> MergedAuthors { get; init; } = [];
-    }
+        var (repo, tip, signature) = context;
+        var repositoryPath = space.ToRepositoryPath(change.Path);
+        var targetPath = change.Path;
 
-    private Plan Prepare(Repository repo, Space space, Commit tip, PageChange change, string repositoryPath, CommitAuthor author)
-    {
         Commit baseCommit;
         if (change.Base is null)
         {
             // Creating a page: the base is the current tip and the path must be free.
             if (tip[repositoryPath] is not null)
             {
-                return new Plan(null, false, new SaveOutcome.PageExists());
+                return new WritePlan<SaveOutcome>.Fail(new SaveOutcome.PageExists());
             }
 
             baseCommit = tip;
@@ -138,15 +92,30 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
         {
             if (!PageService.IsCommitId(change.Base.CommitId) || repo.Lookup<Commit>(change.Base.CommitId) is not { } found)
             {
-                return new Plan(null, false, new SaveOutcome.InvalidBase());
+                return new WritePlan<SaveOutcome>.Fail(new SaveOutcome.InvalidBase());
             }
 
             baseCommit = found;
             if (baseCommit[repositoryPath] is null)
             {
-                return new Plan(null, false, new SaveOutcome.PageMissing());
+                return new WritePlan<SaveOutcome>.Fail(new SaveOutcome.PageMissing());
+            }
+
+            // The page was moved or deleted after the edit started (005 research R6).
+            if (change.Content is not null && tip[repositoryPath] is null)
+            {
+                switch (moves.Resolve(space, tip.Sha, change.Path))
+                {
+                    case MoveResolution.Moved moved:
+                        targetPath = moved.Path;
+                        break;
+                    case MoveResolution.Deleted:
+                        return new WritePlan<SaveOutcome>.Fail(new SaveOutcome.PageDeleted(change.Content));
+                }
             }
         }
+
+        var targetRepositoryPath = space.ToRepositoryPath(targetPath);
 
         // Added files are new paths: never overwrite one that exists at the base or the tip.
         foreach (var file in change.Files)
@@ -154,12 +123,27 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             var path = space.ToRepositoryPath(file.SpacePath);
             if (baseCommit[path] is not null || tip[path] is not null)
             {
-                return new Plan(null, false, new SaveOutcome.AttachmentExists(file.SpacePath));
+                return new WritePlan<SaveOutcome>.Fail(new SaveOutcome.AttachmentExists(file.SpacePath));
             }
         }
 
-        var signature = new Signature(author.Name, author.Email, time.GetUtcNow());
-        var definition = TreeDefinition.From(baseCommit.Tree);
+        var message = RepositoryWriter.NormalizeMessage(change.Message);
+
+        // The edit's starting point. When the page moved meanwhile, a synthetic ancestor that
+        // already contains the move lets the merge combine just the contents (005 research R6).
+        var mineBase = baseCommit;
+        var theirs = tip;
+        if (targetRepositoryPath != repositoryPath)
+        {
+            var moved = TreeDefinition.From(baseCommit.Tree);
+            var entry = baseCommit[repositoryPath];
+            moved.Remove(repositoryPath);
+            moved.Add(targetRepositoryPath, (Blob)entry.Target, entry.Mode);
+            mineBase = repo.ObjectDatabase.CreateCommit(signature, signature, "base\n", repo.ObjectDatabase.CreateTree(moved), [], prettifyMessage: false);
+            theirs = repo.ObjectDatabase.CreateCommit(signature, signature, "tip\n", tip.Tree, [mineBase], prettifyMessage: false);
+        }
+
+        var definition = TreeDefinition.From(mineBase.Tree);
         foreach (var file in change.Files)
         {
             var blob = repo.ObjectDatabase.CreateBlob(new MemoryStream(file.Content));
@@ -173,48 +157,84 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
         else
         {
             var blob = repo.ObjectDatabase.CreateBlob(new MemoryStream(Encoding.UTF8.GetBytes(change.Content)));
-            definition.Add(repositoryPath, blob, Mode.NonExecutableFile);
+            definition.Add(targetRepositoryPath, blob, Mode.NonExecutableFile);
+        }
+
+        if (change.Base is null)
+        {
+            Added(new OrderFiles(repo, space, mineBase, definition), mineBase, space, change.Path);
+        }
+        else if (change.Content is null)
+        {
+            var parent = SpacePaths.Parent(change.Path);
+            var entry = FolderOrder.EntryFor(SpacePaths.Name(change.Path), isPage: true);
+            new OrderFiles(repo, space, mineBase, definition).Removed(
+                parent,
+                entry,
+                stillUsed: OrderFiles.Children(mineBase, space, parent).Any(c => !c.IsPage && string.Equals(c.Entry, entry, StringComparison.OrdinalIgnoreCase)));
         }
 
         var tree = repo.ObjectDatabase.CreateTree(definition);
         if (tree.Sha == baseCommit.Tree.Sha && baseCommit.Sha == tip.Sha)
         {
-            return new Plan(tip, false, null);
+            return new WritePlan<SaveOutcome>.NoChange(Saved(tip, targetRepositoryPath, targetPath, merged: false, []));
         }
 
-        var message = NormalizeMessage(change.Message);
-        var mine = repo.ObjectDatabase.CreateCommit(signature, signature, message, tree, [baseCommit], prettifyMessage: false);
+        var mine = repo.ObjectDatabase.CreateCommit(signature, signature, message, tree, [mineBase], prettifyMessage: false);
         if (baseCommit.Sha == tip.Sha)
         {
-            return new Plan(mine, false, null);
+            return new WritePlan<SaveOutcome>.Push(mine, Saved(mine, targetRepositoryPath, targetPath, merged: false, []));
         }
 
         // The branch moved since the edit started: three-way merge in memory (FR-016).
-        var merge = repo.ObjectDatabase.MergeCommits(mine, tip, new MergeTreeOptions { FailOnConflict = false, SkipReuc = true });
+        var merge = repo.ObjectDatabase.MergeCommits(mine, theirs, new MergeTreeOptions { FailOnConflict = false, SkipReuc = true });
         if (merge.Status != MergeTreeStatus.Succeeded)
         {
-            return new Plan(null, false, Conflict(repo, baseCommit, tip, repositoryPath, change.Content ?? ""));
+            return new WritePlan<SaveOutcome>.Fail(Conflict(repo, baseCommit, tip, repositoryPath, targetRepositoryPath, change.Content ?? ""));
         }
 
-        var mergedAuthors = ChangedBy(repo, baseCommit, tip, repositoryPath).Reverse().Distinct(StringComparer.Ordinal).ToList();
+        var mergedAuthors = ChangedBy(repo, baseCommit, tip, targetRepositoryPath).Reverse().Distinct(StringComparer.Ordinal).ToList();
         if (merge.Tree.Sha == tip.Tree.Sha)
         {
-            return new Plan(tip, true, null) { MergedAuthors = mergedAuthors };
+            return new WritePlan<SaveOutcome>.NoChange(Saved(tip, targetRepositoryPath, targetPath, merged: true, mergedAuthors));
         }
 
         // Linear history: one single-parent commit on top of the tip (research.md R5).
         var merged = repo.ObjectDatabase.CreateCommit(signature, signature, message, merge.Tree, [tip], prettifyMessage: false);
-        return new Plan(merged, true, null) { MergedAuthors = mergedAuthors };
+        return new WritePlan<SaveOutcome>.Push(merged, Saved(merged, targetRepositoryPath, targetPath, merged: true, mergedAuthors));
     }
 
-    private static SaveOutcome.Conflict Conflict(Repository repo, Commit baseCommit, Commit tip, string repositoryPath, string mine)
+    /// <summary>
+    /// A new page joins its folder's <c>.order</c>; when it also creates folders, the top-most new
+    /// folder joins its parent's (005 FR-021).
+    /// </summary>
+    private static void Added(OrderFiles orders, Commit commit, Space space, string path)
     {
-        var authors = ChangedBy(repo, baseCommit, tip, repositoryPath).Distinct(StringComparer.Ordinal).ToList();
+        var segments = path.Split('/');
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            var parent = string.Join('/', segments[..i]);
+            if (!OrderFiles.Children(commit, space, parent).Any(c => !c.IsPage && c.Name == segments[i]))
+            {
+                orders.Added(parent, FolderOrder.EntryFor(segments[i], isPage: false));
+                return;
+            }
+        }
+
+        orders.Added(SpacePaths.Parent(path), FolderOrder.EntryFor(segments[^1], isPage: true));
+    }
+
+    private static SaveOutcome.Saved Saved(Commit commit, string repositoryPath, string spacePath, bool merged, IReadOnlyList<string> mergedAuthors) =>
+        new(VersionOf(commit, repositoryPath), merged, mergedAuthors, spacePath);
+
+    private static SaveOutcome.Conflict Conflict(Repository repo, Commit baseCommit, Commit tip, string basePath, string tipPath, string mine)
+    {
+        var authors = ChangedBy(repo, baseCommit, tip, tipPath).Distinct(StringComparer.Ordinal).ToList();
 
         return new SaveOutcome.Conflict(
-            Text(baseCommit, repositoryPath),
-            Text(tip, repositoryPath),
-            VersionOf(tip, repositoryPath),
+            Text(baseCommit, basePath),
+            Text(tip, tipPath),
+            VersionOf(tip, tipPath),
             authors,
             mine);
     }
@@ -226,110 +246,9 @@ public sealed class PageWriter(SpaceRegistry registry, MirrorRepository mirror, 
             .Select(e => e.Commit.Author.Name)
             .ToList();
 
-    private abstract record PushResult
-    {
-        public sealed record Ok : PushResult;
-
-        public sealed record Stale : PushResult;
-
-        public sealed record Rejected(string Reason) : PushResult;
-
-        public sealed record Unreachable(string Reason) : PushResult;
-    }
-
-    private PushResult Publish(Repository repo, Space space, Commit candidate, GitCredentials credentials)
-    {
-        if (!space.HasRemote)
-        {
-            // Repository kept only on the data volume: the mirror is the source of truth.
-            return new PushResult.Ok();
-        }
-
-        if (CheckedOutBranchConflict(space) is { } reason)
-        {
-            return new PushResult.Rejected(reason);
-        }
-
-        var pushRef = PushRefPrefix + Guid.NewGuid().ToString("N");
-        repo.Refs.Add(pushRef, candidate.Id);
-        try
-        {
-            string? error = null;
-            var options = new PushOptions { OnPushStatusError = e => error = e.Message };
-            MirrorRepository.Apply(credentials, options);
-            repo.Network.Push(repo.Network.Remotes[MirrorRepository.RemoteName], $"{pushRef}:refs/heads/{space.Branch}", options);
-
-            if (error is null)
-            {
-                return new PushResult.Ok();
-            }
-
-            return IsStale(error) ? new PushResult.Stale() : new PushResult.Rejected(error);
-        }
-        catch (NonFastForwardException)
-        {
-            return new PushResult.Stale();
-        }
-        catch (LibGit2SharpException ex) when (IsStale(ex.Message))
-        {
-            return new PushResult.Stale();
-        }
-        catch (LibGit2SharpException ex)
-        {
-            logger.LogWarning(ex, "Push to space {SpaceId} failed.", space.Id);
-            return IsRejection(ex.Message) ? new PushResult.Rejected(ex.Message) : new PushResult.Unreachable($"The repository could not be reached: {ex.Message}");
-        }
-        finally
-        {
-            repo.Refs.Remove(pushRef);
-        }
-    }
-
-    /// <summary>
-    /// Pushing to the checked-out branch of a non-bare local repository would leave its working
-    /// tree out of date (git refuses this by default; libgit2's local transport does not), so the
-    /// wiki refuses it explicitly (task T109).
-    /// </summary>
-    private static string? CheckedOutBranchConflict(Space space)
-    {
-        var url = MirrorRepository.NormalizeRemoteUrl(space.RemoteUrl!);
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !uri.IsFile)
-        {
-            return null;
-        }
-
-        if (!Repository.IsValid(url))
-        {
-            return null;
-        }
-
-        using var target = new Repository(url);
-        if (target.Info.IsBare || target.Head.CanonicalName != $"refs/heads/{space.Branch}")
-        {
-            return null;
-        }
-
-        return $"Branch '{space.Branch}' is checked out in the local repository '{url}', so saving would leave its working files out of date. " +
-               "Point the space at a bare repository or at a branch that is not checked out.";
-    }
-
-    private static bool IsStale(string message) =>
-        message.Contains("non-fast-forward", StringComparison.OrdinalIgnoreCase) ||
-        message.Contains("fetch first", StringComparison.OrdinalIgnoreCase) ||
-        message.Contains("cannot push because a reference that you are trying to update", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsRejection(string message) =>
-        message.Contains("403", StringComparison.Ordinal) ||
-        message.Contains("401", StringComparison.Ordinal) ||
-        message.Contains("rejected", StringComparison.OrdinalIgnoreCase) ||
-        message.Contains("denied", StringComparison.OrdinalIgnoreCase) ||
-        message.Contains("policy", StringComparison.OrdinalIgnoreCase);
-
-    private static string NormalizeMessage(string message) => message.Trim().ReplaceLineEndings("\n") + "\n";
-
     private static string Text(Commit commit, string path) =>
         commit[path]?.Target is Blob blob ? blob.GetContentText() : "";
 
-    private static PageVersionRef VersionOf(Commit commit, string path) =>
+    internal static PageVersionRef VersionOf(Commit commit, string path) =>
         new(commit.Sha, (commit[path]?.Target as Blob)?.Sha);
 }

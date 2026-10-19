@@ -11,6 +11,7 @@ public static class ApiEndpoints
         api.MapSpacesEndpoints();
         api.MapFilesEndpoints();
         api.MapPageWriteEndpoints();
+        api.MapTreeEndpoints();
         api.MapDiscussionsEndpoints();
         api.MapUserTokenEndpoints();
         api.MapUploadEndpoints();

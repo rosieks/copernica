@@ -51,8 +51,7 @@ public sealed class HistoryService
         var skip = int.TryParse(cursor, out var offset) && offset > 0 ? offset : 0;
 
         using var repo = new Repository(space.MirrorPath);
-        var entries = repo.Commits
-            .QueryBy(space.ToRepositoryPath(path), new CommitFilter { IncludeReachableFrom = head, SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Time })
+        var entries = Stitched(repo, space, head, path)
             .Skip(skip)
             .Take(take + 1)
             .Select(e => new PageVersionDto(
@@ -66,6 +65,43 @@ public sealed class HistoryService
 
         var hasMore = entries.Count > take;
         return new HistoryPage(entries.Take(take).ToList(), hasMore ? (skip + take).ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+    }
+
+    /// <summary>
+    /// The file's history as git follows it (by similarity), continued across wiki moves whose
+    /// content changed too much for rename detection: when the history ends at a commit that
+    /// added the file and whose <c>Copernica-Moved</c> trailer produced it, it goes on with the
+    /// old path from that commit's parent (005 research R5).
+    /// </summary>
+    private static IEnumerable<LogEntry> Stitched(Repository repo, Space space, string start, string path)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (var hop = 0; hop <= MoveResolver.MaxHops; hop++)
+        {
+            LogEntry? last = null;
+            foreach (var entry in repo.Commits.QueryBy(space.ToRepositoryPath(path), new CommitFilter { IncludeReachableFrom = start, SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Time }))
+            {
+                if (seen.Add(entry.Commit.Sha))
+                {
+                    yield return entry;
+                }
+
+                last = entry;
+            }
+
+            if (last is null
+                || last.Commit.Parents.FirstOrDefault() is not { } parent
+                || parent[last.Path] is not null
+                || space.ToSpacePath(last.Path) is not { } addedAs
+                || MoveResolver.PreviousPath(last.Commit, addedAs) is not { } previous
+                || parent[space.ToRepositoryPath(previous)] is null)
+            {
+                yield break;
+            }
+
+            path = previous;
+            start = parent.Sha;
+        }
     }
 
     /// <summary>Content of <paramref name="path"/> at <paramref name="commitId"/>, or empty when it did not exist.</summary>

@@ -43,3 +43,12 @@ export function clearDraft(spaceId: string, path: string): void {
     // Ignore.
   }
 }
+
+/** Keeps an unsaved draft when its page moved (005 research R6): the draft follows to the new path. */
+export function moveDraft(spaceId: string, oldPath: string, newPath: string): void {
+  if (oldPath === newPath) return;
+  const draft = loadDraft(spaceId, oldPath);
+  if (!draft) return;
+  saveDraft(spaceId, newPath, draft);
+  clearDraft(spaceId, oldPath);
+}

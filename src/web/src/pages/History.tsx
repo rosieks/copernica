@@ -18,15 +18,21 @@ interface HistoryPage {
 }
 
 /** S5. Page history with From/To selection and a difference view (001 FR-014). */
-export function History({ space, path }: { space: Schemas['Space']; path: string }) {
+/** `version` starts the history at an older commit, e.g. for a page that was deleted since (005). */
+export function History({ space, path, version }: { space: Schemas['Space']; path: string; version?: string }) {
   const spaceId = space.id;
   const base = `/api/spaces/${encodeURIComponent(spaceId)}`;
   useDocumentTitle(`History of ${path}`, space.displayName);
   const history = useInfiniteQuery({
-    queryKey: ['history', spaceId, path],
+    queryKey: ['history', spaceId, path, version],
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      api<HistoryPage>(`${base}/history/${encodePath(path)}${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`),
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams();
+      if (pageParam) query.set('cursor', pageParam);
+      if (version) query.set('version', version);
+      const search = query.toString();
+      return api<HistoryPage>(`${base}/history/${encodePath(path)}${search ? `?${search}` : ''}`);
+    },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const versions = history.data?.pages.flatMap((p) => p.items) ?? [];

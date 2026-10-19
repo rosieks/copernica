@@ -68,6 +68,7 @@ export function DeletePageDialog({
   version,
   open,
   onClose,
+  onDeleted,
   returnFocusTo,
 }: {
   spaceId: string;
@@ -75,6 +76,8 @@ export function DeletePageDialog({
   version: { commitId: string; blobId?: string | null };
   open: boolean;
   onClose: () => void;
+  /** Called after the deletion instead of going to the space home (e.g. deleting another page from the tree). */
+  onDeleted?: () => void;
   returnFocusTo?: RefObject<HTMLElement | null>;
 }) {
   const navigate = useNavigate();
@@ -96,7 +99,8 @@ export function DeletePageDialog({
       await queryClient.invalidateQueries({ queryKey: ['tree', spaceId] });
       notify({ tone: 'success', title: 'Page deleted', description: 'It stays available in the repository history.' });
       onClose();
-      navigate(`/s/${spaceId}/`);
+      if (onDeleted) onDeleted();
+      else navigate(`/s/${spaceId}/`);
     } catch (e) {
       setError(
         e instanceof ApiError && e.type === 'edit-conflict'

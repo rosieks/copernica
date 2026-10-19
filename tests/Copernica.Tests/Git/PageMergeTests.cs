@@ -27,7 +27,8 @@ public sealed class PageMergeTests : IDisposable
         _registry = new SpaceRegistry(options);
         _space = _registry.Find("wiki")!;
         _mirror.EnsureInitialized(_space);
-        _writer = new PageWriter(_registry, _mirror, TimeProvider.System, NullLogger<PageWriter>.Instance);
+        var repositoryWriter = new RepositoryWriter(_registry, _mirror, TimeProvider.System, NullLogger<RepositoryWriter>.Instance);
+        _writer = new PageWriter(repositoryWriter, new MoveResolver(new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

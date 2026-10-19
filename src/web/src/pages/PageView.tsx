@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { ChatBubbleIcon, CounterClockwiseClockIcon, DownloadIcon, Pencil1Icon } from '@radix-ui/react-icons';
 import { api, ApiError, encodePath, type Schemas } from '../api/client';
 import { DeletePageDialog } from '../components/PageDialogs';
+import type { TreeAction } from '../components/TreeItemMenu';
 import { DiscussionPanel } from '../discussions/DiscussionPanel';
 import { HighlightMarkers } from '../discussions/HighlightMarkers';
 import { SelectionPopover, useArticleSelection } from '../discussions/SelectionPopover';
@@ -14,9 +15,10 @@ import { useDiagrams } from '../diagrams/useDiagrams';
 import { useHighlights } from '../discussions/useHighlights';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { MEDIUM, useMediaQuery, WIDE } from '../layout/useMediaQuery';
-import { fileApi, pageApi } from '../routes';
+import { moveDraft } from '../drafts';
+import { fileApi, pageApi, spaceRoute } from '../routes';
 import { useShortcut } from '../shortcuts';
-import { Button, EmptyState, Kbd, Sheet, Toolbar, Tooltip } from '../ui';
+import { Button, Callout, EmptyState, Kbd, Sheet, Toolbar, Tooltip } from '../ui';
 import { Breadcrumbs } from './Breadcrumbs';
 import { PageActions } from './PageActions';
 import { PageInfo } from './PageInfo';
@@ -30,19 +32,39 @@ export function usePage(spaceId: string, path: string, version?: string) {
   });
 }
 
+/** The tree node of a page, for the tree's rename and move dialogs. */
+function pageNode(path: string, title: string): Schemas['TreeNode'] {
+  return { name: path.split('/').pop() ?? path, path, title, kind: 'page' };
+}
+
 interface Props {
   space: Schemas['Space'];
   path: string;
   version?: string;
   /** The grid's aside column (wide screens); discussions render there. */
   asideNode: HTMLElement | null;
+  /** Tree management for this page (rename, move; 005 FR-003). */
+  onTreeAction?: (action: TreeAction, node: Schemas['TreeNode']) => void;
 }
 
 /** S3. Renders a page; the HTML is sanitized by the server and this is the only place it is injected. */
-export function PageView({ space, path, version, asideNode }: Props) {
+export function PageView({ space, path, version, asideNode, onTreeAction }: Props) {
   const spaceId = space.id;
   const page = usePage(spaceId, path, version);
   const navigate = useNavigate();
+  const location = useLocation();
+  const movedFrom = (location.state as { movedFrom?: string } | null)?.movedFrom;
+  const [dismissedMove, setDismissedMove] = useState<string>();
+  const problem = page.error instanceof ApiError ? page.error : undefined;
+  const movedTo = problem?.type === 'page-moved' && typeof problem.problem.currentPath === 'string' ? problem.problem.currentPath : undefined;
+  const lastVersion = typeof problem?.problem.lastVersion === 'string' ? problem.problem.lastVersion : undefined;
+
+  // An old address of a moved page: go to where it is now and say so (005 FR-010).
+  useEffect(() => {
+    if (!movedTo || version) return;
+    moveDraft(spaceId, path, movedTo);
+    navigate(spaceRoute(spaceId, movedTo), { replace: true, state: { movedFrom: path } });
+  }, [movedTo, version, spaceId, path, navigate]);
   const article = useRef<HTMLElement>(null);
   const moreActions = useRef<HTMLButtonElement>(null);
   const discussionsToggle = useRef<HTMLButtonElement>(null);
@@ -149,6 +171,14 @@ export function PageView({ space, path, version, asideNode }: Props) {
     );
   }
 
+  if (page.isError && movedTo && !version) {
+    return (
+      <p className="status" role="status">
+        This page has moved. Opening it at its new location…
+      </p>
+    );
+  }
+
   if (page.isError) {
     const notFound = page.error instanceof ApiError && page.error.status === 404;
     return (
@@ -157,7 +187,17 @@ export function PageView({ space, path, version, asideNode }: Props) {
         <h1 className="visually-hidden">{notFound ? 'Page not found' : 'This page could not be loaded'}</h1>
         <EmptyState
           title={notFound ? 'Page not found' : 'This page could not be loaded'}
-          description={notFound ? `There is no page at “${path}”.` : page.error.message}
+          description={
+            notFound && lastVersion ? (
+              <>
+                The page at “{path}” was deleted. <Link to={`/s/${spaceId}/-/history/${encodePath(path)}?version=${lastVersion}`}>View its history</Link>
+              </>
+            ) : notFound ? (
+              `There is no page at “${path}”.`
+            ) : (
+              page.error.message
+            )
+          }
           action={
             notFound && space.canWrite && !version ? (
               <Button asChild variant="primary">
@@ -192,6 +232,9 @@ export function PageView({ space, path, version, asideNode }: Props) {
   return (
     <div className="page">
       <StateIndicators space={space} path={path} page={loaded} />
+      {movedFrom && dismissedMove !== movedFrom && (
+        <Callout tone="info" title={`This page was moved from “${movedFrom}”.`} onDismiss={() => setDismissedMove(movedFrom)} />
+      )}
       <Breadcrumbs spaceId={spaceId} spaceName={space.displayName} path={path} />
       <div className="page__head">
         {hasHeading || loaded.tooLarge ? <span /> : <h1 className="page__title">{loaded.title}</h1>}
@@ -241,6 +284,8 @@ export function PageView({ space, path, version, asideNode }: Props) {
             isCurrent={isCurrent}
             canDelete={canEdit}
             onDelete={() => setDeleting(true)}
+            onRename={canEdit && onTreeAction ? () => onTreeAction('rename', pageNode(path, loaded.title)) : undefined}
+            onMove={canEdit && onTreeAction ? () => onTreeAction('move', pageNode(path, loaded.title)) : undefined}
             triggerRef={moreActions}
           />
         </Toolbar.Root>

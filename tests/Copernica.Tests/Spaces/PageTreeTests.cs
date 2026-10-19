@@ -50,4 +50,33 @@ public sealed class PageTreeTests
 
         Assert.Equal(["index.md"], root.Children!.Select(c => c.Name));
     }
+
+    [Fact]
+    public void Folder_order_files_order_children_per_folder_and_are_never_pages()
+    {
+        string[] paths = ["index.md", "about.md", ".order", "guides/setup.md", "guides/faq.md", "guides/.order", "api/x.md"];
+        var titles = paths.Where(PageTreeBuilder.IsPage).ToDictionary(p => p, p => p);
+        var orders = new Dictionary<string, FolderOrder>
+        {
+            [""] = FolderOrder.Parse("index\nguides\n"u8.ToArray())!,
+            ["guides"] = FolderOrder.Parse("faq\n"u8.ToArray())!,
+        };
+
+        var root = PageTreeBuilder.Build(paths, titles, folder => orders.GetValueOrDefault(folder));
+
+        Assert.Equal(["index.md", "guides", "api", "about.md"], root.Children!.Select(c => c.Name));
+        Assert.Equal(["faq.md", "setup.md"], root.Children!.Single(c => c.Name == "guides").Children!.Select(c => c.Name));
+        Assert.True(PageTreeBuilder.IsOrderFile("guides/.order"));
+        Assert.False(PageTreeBuilder.IsPage(".order"));
+    }
+
+    [Fact]
+    public void Malformed_order_falls_back_to_alphabetical()
+    {
+        string[] paths = ["b.md", "a.md"];
+
+        var root = PageTreeBuilder.Build(paths, paths.ToDictionary(p => p, p => p), _ => FolderOrder.Parse([0xff, 0xfe]));
+
+        Assert.Equal(["a.md", "b.md"], root.Children!.Select(c => c.Name));
+    }
 }
