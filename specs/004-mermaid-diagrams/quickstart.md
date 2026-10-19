@@ -35,7 +35,7 @@ setup. Push these pages to `handbook` with plain git:
 | D6 | Open an old version of `all-types.md` after changing a diagram | The old diagram is drawn | US1-5 |
 | D7 | Edit a page; add a flowchart; then introduce a typo; then fix it | Preview draws it ≤ 2 s after typing stops; typo → error only for that diagram; fixed → drawn | US2, SC-003 |
 | D8 | Switch the OS theme with diagrams visible | Diagrams redraw in dark colours; WCAG scan 0 violations in both themes | US3-1, FR-010, SC-005 |
-| D9 | 320 px width on `wide.md` | Only the diagram scrolls; no page reflow | US3-2, FR-011 |
+| D9 | 320 px width on `wide.md`; then "Show full size" and "Fit to width" | Fits the column with no scrolling; at full size only the diagram scrolls; no page reflow in either. A diagram that fits (`ado.md`) has no size button | US3-2, FR-011 |
 | D10 | Keyboard: Tab to "Show diagram source", Enter, Enter | Source shown, then diagram again; focus stays on the button; `aria-expanded` toggles | US3-4, FR-013 |
 | D11 | Open `evil.md` with all requests logged and a dialog handler | 0 dialogs; `window.__xss` unset; 0 requests to hosts other than the wiki; no `javascript:` link in the links list | FR-007, FR-008, SC-004 |
 | D12 | `curl -I /diagram-renderer.html` and `/` | Renderer CSP as in [renderer.md](contracts/renderer.md); SPA shell CSP unchanged (002) | R4 |

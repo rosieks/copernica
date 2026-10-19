@@ -50,8 +50,11 @@ class DiagramFigure {
   private readonly source: HTMLElement | null;
   private readonly text: string;
   private toggle: HTMLButtonElement | null = null;
+  private sizeToggle: HTMLButtonElement | null = null;
   private image: HTMLImageElement | null = null;
+  private resizeObserver: ResizeObserver | null = null;
   private showingSource = false;
+  private fullSize = false;
   private drawnTheme: boolean | null = null;
 
   constructor(
@@ -89,8 +92,7 @@ class DiagramFigure {
       this.drawnTheme = theme.dark;
     } catch (error) {
       if (isCancelled()) return;
-      this.image = null;
-      this.toggle = null;
+      this.forgetImage();
       this.source.hidden = false;
       const message = error instanceof Error ? error.message : String(error);
       this.chrome.replaceChildren(warningCallout('This diagram could not be drawn.', message));
@@ -109,16 +111,27 @@ class DiagramFigure {
     const description = this.figure.getAttribute('data-diagram-description');
     if (!this.image) {
       const toolbar = el('div', 'diagram__toolbar');
+      const sizeToggle = el('button', 'ui-button ui-button--ghost ui-button--sm diagram__size');
+      sizeToggle.type = 'button';
+      sizeToggle.hidden = true;
+      sizeToggle.addEventListener('click', () => this.setFullSize(!this.fullSize));
       const toggle = el('button', 'ui-button ui-button--ghost ui-button--sm diagram__toggle');
       toggle.type = 'button';
       toggle.addEventListener('click', () => this.setShowingSource(!this.showingSource));
-      toolbar.append(toggle);
+      toolbar.append(sizeToggle, toggle);
       const image = el('img', 'diagram__image');
       image.alt = diagramAltText(name, description);
       image.decoding = 'async';
+      image.addEventListener('load', () => this.updateSizeToggle());
       this.chrome.replaceChildren(toolbar, image);
       this.toggle = toggle;
+      this.sizeToggle = sizeToggle;
       this.image = image;
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(() => this.updateSizeToggle());
+        this.resizeObserver.observe(this.figure);
+      }
+      this.setFullSize(false);
       this.setShowingSource(false);
     }
 
@@ -134,10 +147,37 @@ class DiagramFigure {
 
     if (this.image) this.image.hidden = show;
     if (this.source) this.source.hidden = !show;
+    this.updateSizeToggle();
+  }
+
+  /** Wide diagrams fit the column by default; full size scrolls inside the figure (FR-011). */
+  private setFullSize(full: boolean) {
+    this.fullSize = full;
+    this.figure.classList.toggle('diagram--full-size', full);
+    if (this.sizeToggle) this.sizeToggle.textContent = full ? 'Fit to width' : 'Show full size';
+  }
+
+  /** The size toggle is offered only while the drawn image is wider than the column. */
+  private updateSizeToggle() {
+    if (!this.image || !this.sizeToggle) return;
+    const wider = this.image.naturalWidth > this.figure.clientWidth;
+    if (!wider && this.fullSize) this.setFullSize(false);
+    this.sizeToggle.hidden = !wider || this.showingSource;
+  }
+
+  private forgetImage() {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    this.figure.classList.remove('diagram--full-size');
+    this.fullSize = false;
+    this.image = null;
+    this.toggle = null;
+    this.sizeToggle = null;
   }
 
   /** Restores the server markup. */
   dispose() {
+    this.forgetImage();
     this.chrome.remove();
     if (this.source) this.source.hidden = false;
   }

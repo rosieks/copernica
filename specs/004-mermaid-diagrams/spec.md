@@ -71,8 +71,8 @@ shown as an error, and that fixing it brings the diagram back.
 ### User Story 3 - Diagrams that everyone can read (Priority: P3)
 
 Readers using the dark theme, a narrow screen or assistive technology can still use diagrams.
-In the dark theme, diagrams use matching colours. Large diagrams scroll inside their own
-area on narrow screens. Screen-reader users get a text alternative, and anyone can switch a
+In the dark theme, diagrams use matching colours. Large diagrams are scaled to fit the
+column, and can be shown at full size, scrolling inside their own area. Screen-reader users get a text alternative, and anyone can switch a
 diagram to its text form.
 
 **Why this priority**: The project's accessibility target (WCAG 2.1 AA) and the 002
@@ -93,7 +93,8 @@ accessible name and a way to read its text.
    diagrams use dark-theme colours with readable contrast, and switch when the theme
    changes.
 2. **Given** a diagram wider than the screen, **When** it is shown on a narrow screen,
-   **Then** only the diagram area scrolls horizontally, not the page (002 FR-009).
+   **Then** it is scaled to fit; **When** the reader asks for full size, **Then** only the
+   diagram area scrolls horizontally, not the page (002 FR-009).
 3. **Given** a diagram, **When** a screen-reader user reaches it, **Then** it is announced as
    an image with a name. The name is the diagram's own title or description when the
    author wrote one, and a generic name with the diagram type otherwise.
@@ -153,8 +154,9 @@ accessible name and a way to read its text.
 
 - **FR-010**: Diagrams MUST follow the light and dark theme (002 FR-025) with WCAG 2.1 AA
   contrast for their text.
-- **FR-011**: Diagrams wider than the content area MUST scroll inside their own area and
-  never make the page scroll horizontally.
+- **FR-011**: Diagrams wider than the content area MUST be scaled to fit it by default and
+  offer a full-size view that scrolls inside its own area. They MUST never make the page
+  scroll horizontally.
 - **FR-012**: Each drawn diagram MUST have an accessible name. The name comes from the
   diagram's own title or description (Mermaid's accessibility title and description) when
   present, and is "<Type> diagram" otherwise.
@@ -174,7 +176,8 @@ accessible name and a way to read its text.
 - **SC-001**: 100% of the diagram types listed in FR-003, taken from the Mermaid examples
   in common use, are drawn correctly on pages and in the preview.
 - **SC-002**: A page with up to 10 typical diagrams (≤ 50 nodes each) shows its text within
-  the existing 2-second target, and all its diagrams within 3 seconds.
+  the existing 2-second target, and all its diagrams within 3 seconds once the diagram
+  renderer is cached (the first diagram page after a release may take longer; research.md R4).
 - **SC-003**: In the editor, the preview reflects a change to a diagram within 2 seconds
   after typing stops.
 - **SC-004**: A security test suite with script injection, click handlers, unsafe links and

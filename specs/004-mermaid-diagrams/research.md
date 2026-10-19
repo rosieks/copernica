@@ -135,9 +135,11 @@ amendment** (R9) instead of relying on interpretation (constitution: transparenc
 
     The text never waits for diagrams. With the renderer cached (immutable assets), SC-002's
     3 s is met everywhere. On a first visit, 2–3.3 s of it is downloading the renderer, so
-    SC-002 is **not met** for the very first diagram page. **Open decision**: prefetch the
-    renderer while idle after the app loads (about 2 MB once per release, also for users who
-    never open a diagram) or accept a slower first visit. D1 asserts the cached case in
+    SC-002 is **not met** for the very first diagram page. **Decision**: accept the slower
+    first visit and do not prefetch. Prefetching while idle would cost every user about 2 MB
+    once per release, including those who never open a diagram. After the first visit the
+    renderer stays in the browser cache until the next release. Revisit if readers report
+    it. D1 asserts the cached case in
     Chromium and Firefox. Playwright's WebKit on Windows varies between 2.7 and 3.5 s cached
     (1 of 5 runs over 3 s), so there D1 records the time as an annotation, not an assertion.
   - The renderer page itself is sent with `X-Frame-Options: SAMEORIGIN` instead of `DENY`.
@@ -156,10 +158,20 @@ amendment** (R9) instead of relying on interpretation (constitution: transparenc
 
   Text colours come from tokens with AA contrast (002 R2).
 - **Size** (FR-011):
-  - the image is shown at the SVG's natural width (from its `viewBox`/`width`), with
-    `max-width: none`;
-  - the figure wrapper has `overflow-x: auto`, so only the diagram scrolls;
+  - the image is shown at the SVG's natural width (from its `viewBox`/`width`), scaled
+    down to the column with `max-width: 100%`;
+  - "Show full size" lifts the limit; the figure wrapper has `overflow-x: auto`, so only
+    the diagram scrolls;
   - smaller diagrams are centred.
+  - The first version always showed the natural width. On a real page, flowcharts,
+    sequence diagrams and gantt charts were cut at the column edge and looked broken, so
+    fitting is the default and scrolling is a choice.
+- **Series colours**: with `theme: 'base'`, Mermaid derives pie slices, `cScale*` and git
+  branch colours from `primaryColor`, so slices were barely distinguishable. The renderer
+  sets them from Radix step 7 of twelve hues (light or dark scale), with the theme's text
+  colour on top, `pieOpacity: 1` and the page background as the slice stroke.
+- **Gantt axis**: the default `%Y-%m-%d` labels overlapped for a plan of a few weeks; the
+  default is `%b %d`. A diagram's own `axisFormat` still applies.
 - **Accessible name** (FR-012): `img alt` = name, plus ". " and the description when
   present.
 - **Source toggle** (FR-013):
