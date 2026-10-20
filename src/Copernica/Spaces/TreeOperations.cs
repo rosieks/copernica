@@ -290,7 +290,9 @@ public sealed class TreeOperations(RepositoryWriter writer, LinkRewriter links)
 
             var definition = TreeDefinition.From(tip.Tree);
             var orders = new OrderFiles(repo, space, tip, definition);
-            var children = orders.Ordered(operation.Folder).ToList();
+            // The folder's own page (README.md / index.md) is shown as the folder, not among its items.
+            var folderPage = OrderFiles.FolderPage(operation.Folder, OrderFiles.Children(tip, space, operation.Folder));
+            var children = orders.Ordered(operation.Folder).Where(c => c != folderPage).ToList();
             var item = children.FirstOrDefault(c => c.Name == operation.Item);
             if (item is null || operation.Before is not null && children.All(c => c.Name != operation.Before))
             {

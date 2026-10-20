@@ -63,6 +63,19 @@ public sealed class OrderTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_folder_readme_is_neither_reordered_nor_added_to_the_order()
+    {
+        var client = await _factory.SignInAsync();
+        await client.SaveAsync("wiki", "reference/README.md", null, "# Reference\n", "Add readme");
+        Assert.Equal("zulu\napi\n", _remote.ReadFile("reference/.order"));
+
+        var response = await client.ReorderAsync("wiki", "reference", "api.md", before: "zulu.md");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("api\nzulu\n", _remote.ReadFile("reference/.order"));
+    }
+
+    [Fact]
     public async Task Moving_to_the_end_and_no_op_reorders()
     {
         var client = await _factory.SignInAsync();

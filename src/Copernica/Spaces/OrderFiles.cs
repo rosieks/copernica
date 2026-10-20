@@ -109,6 +109,23 @@ public sealed class OrderFiles(Repository repo, Space space, Commit commit, Tree
         return result;
     }
 
+    /// <summary>File names of a folder's own page, which opens when the folder is clicked (like a README), in priority order.</summary>
+    public static readonly string[] FolderPageNames = ["README.md", "index.md"];
+
+    /// <summary>The page a folder opens with: README.md, else index.md (ignoring case); none for the space root.</summary>
+    public static TreeChild? FolderPage(string folder, IEnumerable<TreeChild> children)
+    {
+        if (folder.Length == 0)
+        {
+            return null;
+        }
+
+        var pages = children.Where(c => c.IsPage).ToList();
+        return FolderPageNames
+            .Select(name => pages.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)))
+            .FirstOrDefault(c => c is not null);
+    }
+
     /// <summary>Children in the order the tree shows them (folder order file, else folders then pages alphabetically).</summary>
     public IReadOnlyList<TreeChild> Ordered(string folder)
     {

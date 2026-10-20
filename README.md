@@ -104,7 +104,10 @@ All settings are listed in
   *Move…* and *Delete page…*.
 - **Organizing pages:** every page and folder in the tree has an actions menu (hover the row
   and choose **⋯**, right-click it, or press `Shift`+`F10`):
-  - **New page here…** and **New folder…** (a folder is created with its first page);
+  - **New page here…** and **New folder…** (a folder is created with its first page,
+    `README` by default);
+  - a folder's `README.md` (or `index.md`) is not listed as a separate page: it opens when
+    you click the folder;
   - **Rename…** and **Move…**, also for whole folders: each change is one commit, links to
     the moved pages in the same space are updated in that commit, and old addresses lead
     to the new location. History and discussions stay with the page;

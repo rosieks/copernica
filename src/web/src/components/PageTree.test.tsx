@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import type { Schemas } from '../api/client';
 import { SINGLE_KEY_STORAGE_KEY } from '../shortcuts/preference';
 import { PageTree } from './PageTree';
@@ -130,5 +130,65 @@ describe('PageTree item actions (005 contracts/ui.md §1)', () => {
     await screen.findByRole('menu');
     expect(screen.getByRole('menuitem', { name: 'Move up' }).getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByRole('menuitem', { name: 'Move down' }).getAttribute('aria-disabled')).toBeNull();
+  });
+});
+
+describe('folder pages (README.md / index.md)', () => {
+  const withReadme: Schemas['TreeNode'] = {
+    name: '',
+    path: '',
+    kind: 'folder',
+    children: [
+      {
+        name: 'guides',
+        path: 'guides',
+        kind: 'folder',
+        children: [
+          { name: 'README.md', path: 'guides/README.md', title: 'Guides', kind: 'page' },
+          { name: 'index.md', path: 'guides/index.md', title: 'Index', kind: 'page' },
+          { name: 'setup.md', path: 'guides/setup.md', title: 'Setup', kind: 'page' },
+        ],
+      },
+      { name: 'solo', path: 'solo', kind: 'folder', children: [{ name: 'index.md', path: 'solo/index.md', title: 'Solo', kind: 'page' }] },
+      { name: 'README.md', path: 'README.md', title: 'Home', kind: 'page' },
+    ],
+  };
+
+  function Location() {
+    return <output data-testid="location">{useLocation().pathname}</output>;
+  }
+
+  function renderPages(currentPath?: string) {
+    render(
+      <MemoryRouter>
+        <PageTree spaceId="wiki" root={withReadme} currentPath={currentPath} />
+        <Location />
+      </MemoryRouter>,
+    );
+  }
+
+  it('hides the folder page from the list and opens it when the folder is clicked', async () => {
+    renderPages();
+    fireEvent.click(screen.getByRole('treeitem', { name: /guides/ }));
+
+    expect(screen.getByTestId('location').textContent).toBe('/s/wiki/guides/README.md');
+    const names = screen.getAllByRole('treeitem').map((item) => item.textContent);
+    expect(names).toEqual(['guides', 'Index', 'Setup', 'solo', 'Home']);
+  });
+
+  it('marks the folder as current while its page is open, and keeps the root README as a page', () => {
+    renderPages('guides/README.md');
+
+    expect(screen.getByRole('treeitem', { name: /guides/ }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('treeitem', { name: /Home/ })).toBeTruthy();
+  });
+
+  it('uses index.md when there is no README, and a folder with only its page is not expandable', () => {
+    renderPages();
+    const solo = screen.getByRole('treeitem', { name: /solo/ });
+
+    expect(solo.getAttribute('aria-expanded')).toBeNull();
+    fireEvent.click(solo);
+    expect(screen.getByTestId('location').textContent).toBe('/s/wiki/solo/index.md');
   });
 });

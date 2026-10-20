@@ -221,7 +221,14 @@ public sealed class PageWriter(RepositoryWriter writer, MoveResolver moves)
             }
         }
 
-        orders.Added(SpacePaths.Parent(path), FolderOrder.EntryFor(segments[^1], isPage: true));
+        // A folder's own page (README.md / index.md) is shown as the folder, so it is not ordered.
+        var parentFolder = SpacePaths.Parent(path);
+        if (parentFolder.Length > 0 && OrderFiles.FolderPageNames.Contains(segments[^1], StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        orders.Added(parentFolder, FolderOrder.EntryFor(segments[^1], isPage: true));
     }
 
     private static SaveOutcome.Saved Saved(Commit commit, string repositoryPath, string spacePath, bool merged, IReadOnlyList<string> mergedAuthors) =>
