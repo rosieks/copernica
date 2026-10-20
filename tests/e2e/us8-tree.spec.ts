@@ -214,15 +214,20 @@ test.describe.serial('005 — managing the page tree', () => {
     await page.getByRole('menuitem', { name: 'New folder…' }).click();
     let dialog = page.getByRole('dialog', { name: 'New folder' });
     await dialog.getByLabel('Folder name').fill('how-to');
-    await expect(dialog.getByLabel('First page name')).toHaveValue('index');
+    await expect(dialog.getByLabel('First page name')).toHaveValue('README');
     await dialog.getByRole('button', { name: 'Create' }).click();
 
-    await expect(page).toHaveURL(/\/s\/tree\/-\/new\/how-to\/index\.md$/);
+    await expect(page).toHaveURL(/\/s\/tree\/-\/new\/how-to\/README\.md$/);
     await replaceEditorText(page, page.getByRole('textbox', { name: 'Page content (Markdown)' }), '# How to\n\nGuides.');
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/s\/tree\/how-to\/index\.md$/);
-    await expect(item(page, 'how-to')).toBeVisible();
-    expect(remoteFile(state().tree, 'how-to/index.md')).toContain('Guides.');
+    await expect(page).toHaveURL(/\/s\/tree\/how-to\/README\.md$/);
+    await expect(item(page, 'how-to')).toHaveAttribute('aria-current', 'page');
+    expect(remoteFile(state().tree, 'how-to/README.md')).toContain('Guides.');
+    // The folder's README is not listed; clicking the folder opens it.
+    await page.goto('/s/tree/index.md');
+    await expect(item(page, 'How to')).toHaveCount(0);
+    await item(page, 'how-to').click();
+    await expect(page).toHaveURL(/\/s\/tree\/how-to\/README\.md$/);
 
     await page.getByRole('button', { name: 'Space actions' }).click();
     await page.getByRole('menuitem', { name: 'New folder…' }).click();
@@ -232,7 +237,7 @@ test.describe.serial('005 — managing the page tree', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
     await page.goto('/s/tree/index.md');
     await expect(item(page, 'abandoned')).toHaveCount(0);
-    expect(remoteHas('abandoned/index.md')).toBe(false);
+    expect(remoteHas('abandoned/README.md')).toBe(false);
   });
 
   test('T13: "New page here" starts the page in that folder', async ({ page }) => {
@@ -257,9 +262,9 @@ test.describe.serial('005 — managing the page tree', () => {
 
     await expect(page.getByText('Folder renamed', { exact: true })).toBeVisible();
     expect(lastMessage()).toContain('Copernica-Moved: how-to/ -> howto/');
-    expect(remoteFile(state().tree, 'howto/index.md')).toContain('Guides.');
-    await page.goto('/s/tree/how-to/index.md');
-    await expect(page).toHaveURL(/\/s\/tree\/howto\/index\.md$/);
+    expect(remoteFile(state().tree, 'howto/README.md')).toContain('Guides.');
+    await page.goto('/s/tree/how-to/README.md');
+    await expect(page).toHaveURL(/\/s\/tree\/howto\/README\.md$/);
   });
 
   test('T17: a folder cannot be moved into itself', async ({ page }) => {
@@ -301,12 +306,16 @@ test.describe.serial('005 — managing the page tree', () => {
   test('T24: Azure DevOps order files order the tree; unknown entries are ignored, unlisted pages follow', async ({ page }) => {
     pushOutside(state().tree, 'howto/zeta.md', '# Zeta\n');
     pushOutside(state().tree, 'howto/new.md', '# New\n');
-    pushOutside(state().tree, 'howto/.order', 'zeta\nindex\nGhost\n');
+    pushOutside(state().tree, 'howto/guide.md', '# Guide\n');
+    pushOutside(state().tree, 'howto/.order', 'zeta\nguide\nGhost\n');
     await page.goto('/s/tree/index.md');
-    await waitForItem(page, 'howto', 'New');
-
-    const names = await tree(page).getByRole('treeitem', { level: 2 }).allTextContents();
-    expect(names.filter((n) => ['Zeta', 'How to', 'New'].includes(n))).toEqual(['Zeta', 'How to', 'New']);
+    // The pushes arrive with the next synchronizations: retry until the order file is in too.
+    await expect(async () => {
+      await page.reload();
+      await expand(page, 'howto');
+      const names = await tree(page).getByRole('treeitem', { level: 2 }).allTextContents();
+      expect(names.filter((n) => ['Zeta', 'Guide', 'New'].includes(n))).toEqual(['Zeta', 'Guide', 'New']);
+    }).toPass({ timeout: 30_000 });
   });
 
   test('T25: Move down in a folder without an order file creates one listing every item', async ({ page }) => {
@@ -361,26 +370,26 @@ test.describe.serial('005 — managing the page tree', () => {
   test('T22: dragging between siblings reorders them right away', async ({ page }) => {
     await page.goto('/s/tree/index.md');
     await expand(page, 'howto');
-    const target = item(page, 'How to');
+    const target = item(page, 'Guide');
     const box = (await target.boundingBox())!;
 
     await item(page, 'New').dragTo(target, { targetPosition: { x: box.width / 2, y: 2 } });
 
-    await expect(page.getByText('Moved before How to', { exact: true })).toBeVisible();
-    expect(remoteFile(state().tree, 'howto/.order').split('\n').filter(Boolean)).toEqual(['new', 'index', 'Ghost']);
+    await expect(page.getByText('Moved before Guide', { exact: true })).toBeVisible();
+    expect(remoteFile(state().tree, 'howto/.order').split('\n').filter(Boolean)).toEqual(['new', 'guide', 'Ghost']);
   });
 
   test('T23: the same results are reachable with the keyboard only', async ({ page }) => {
     await page.goto('/s/tree/index.md');
     await expand(page, 'howto');
-    const howTo = item(page, 'How to');
+    const howTo = item(page, 'Guide');
     await howTo.focus();
     await page.keyboard.press('Shift+F10');
     await page.getByRole('menuitem', { name: 'Move up' }).press('Enter');
     await expect(page.getByText('Moved up', { exact: true })).toBeVisible();
     await expect(howTo).toBeFocused();
-    // The unknown entry stays after its neighbour "index" (contracts/order-file.md).
-    expect(remoteFile(state().tree, 'howto/.order').split('\n').filter(Boolean)).toEqual(['index', 'Ghost', 'new']);
+    // The unknown entry stays after its neighbour "guide" (contracts/order-file.md).
+    expect(remoteFile(state().tree, 'howto/.order').split('\n').filter(Boolean)).toEqual(['guide', 'Ghost', 'new']);
 
     await howTo.focus();
     await page.keyboard.press('Shift+F10');
@@ -390,7 +399,7 @@ test.describe.serial('005 — managing the page tree', () => {
     await dialog.getByLabel('archive', { exact: true }).press('Space');
     await dialog.getByRole('button', { name: 'Move' }).press('Enter');
     await expect(page.getByText('Page moved', { exact: true })).toBeVisible();
-    expect(remoteHas('archive/index.md')).toBe(true);
+    expect(remoteHas('archive/guide.md')).toBe(true);
   });
 
   test('T29: on a narrow touch screen there is no dragging and the menu is on the row', async ({ browser }) => {

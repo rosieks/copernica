@@ -374,13 +374,13 @@ export function NewFolderDialog({
 }) {
   const navigate = useNavigate();
   const [folder, setFolder] = useState('');
-  const [page, setPage] = useState('index');
+  const [page, setPage] = useState('README');
   const [errors, setErrors] = useState<{ folder?: string; page?: string }>({});
 
   useEffect(() => {
     if (!open) return;
     setFolder('');
-    setPage('index');
+    setPage('README');
     setErrors({});
   }, [open]);
 
@@ -406,7 +406,13 @@ export function NewFolderDialog({
           error={errors.folder}
           onChange={(e) => setFolder(e.target.value)}
         />
-        <Field label="First page name" value={page} error={errors.page} onChange={(e) => setPage(e.target.value)} />
+        <Field
+          label="First page name"
+          hint="A README page opens when the folder is clicked."
+          value={page}
+          error={errors.page}
+          onChange={(e) => setPage(e.target.value)}
+        />
         <div className="row row--end">
           <Button onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="primary">

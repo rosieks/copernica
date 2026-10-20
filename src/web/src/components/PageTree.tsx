@@ -28,6 +28,27 @@ function fromPortal(event: SyntheticEvent): boolean {
   return !(event.currentTarget as Node).contains(event.target as Node);
 }
 
+/** File names of a folder's own page, shown when the folder is opened (like a README). */
+const FOLDER_PAGE_NAMES = ['readme.md', 'index.md'];
+
+/** The page a folder opens with: its README.md, else its index.md (case-insensitive); never at the root. */
+export function folderPage(node: TreeNode): TreeNode | undefined {
+  if (node.kind !== 'folder' || node.path === '') return undefined;
+  for (const name of FOLDER_PAGE_NAMES) {
+    const page = node.children?.find((c) => c.kind === 'page' && c.name.toLowerCase() === name);
+    if (page) return page;
+  }
+  return undefined;
+}
+
+/** The folder whose own page `path` is, or undefined for ordinary pages. */
+function folderOfPage(root: TreeNode, path: string): TreeNode | undefined {
+  const parent = path.split('/').slice(0, -1).join('/');
+  if (!parent) return undefined;
+  const folder = findFolder(root, parent);
+  return folder && folderPage(folder)?.path === path ? folder : undefined;
+}
+
 function ancestors(path: string): string[] {
   const parts = path.split('/');
   return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/'));
@@ -92,29 +113,36 @@ export const PageTree = forwardRef<PageTreeHandle, Props>(function PageTree(
   const [pendingFocus, setPendingFocus] = useState<string>();
   const refs = useRef(new Map<string, HTMLLIElement>());
 
+  // A folder's own page is represented by the folder itself.
+  const itemPath = (path: string) => folderOfPage(root, path)?.path ?? path;
+  const currentItem = currentPath ? itemPath(currentPath) : undefined;
+
   useEffect(() => {
     if (!currentPath) return;
     setExpanded((prev) => new Set([...prev, ...ancestors(currentPath)]));
-    setFocused(currentPath);
+    setFocused(itemPath(currentPath));
   }, [currentPath]);
 
   const visible = useMemo(() => {
     const items: VisibleItem[] = [];
-    const walk = (nodes: TreeNode[], level: number, parent?: string) => {
+    const walk = (folder: TreeNode, level: number) => {
+      const hidden = folderPage(folder)?.path;
+      const nodes = (folder.children ?? []).filter((c) => c.path !== hidden);
       nodes.forEach((node, index) => {
-        items.push({ node, level, parent, first: index === 0, last: index === nodes.length - 1 });
-        if (node.kind === 'folder' && expanded.has(node.path)) walk(node.children ?? [], level + 1, node.path);
+        items.push({ node, level, parent: folder.path || undefined, first: index === 0, last: index === nodes.length - 1 });
+        if (node.kind === 'folder' && expanded.has(node.path)) walk(node, level + 1);
       });
     };
-    walk(root.children ?? [], 1);
+    walk(root, 1);
     return items;
   }, [root, expanded]);
 
   useImperativeHandle(ref, () => ({
     focusPath(path: string) {
-      setExpanded((prev) => new Set([...prev, ...ancestors(path)]));
-      setFocused(path);
-      setPendingFocus(path);
+      const target = itemPath(path);
+      setExpanded((prev) => new Set([...prev, ...ancestors(target)]));
+      setFocused(target);
+      setPendingFocus(target);
     },
   }));
 
@@ -146,9 +174,20 @@ export const PageTree = forwardRef<PageTreeHandle, Props>(function PageTree(
     });
   }
 
+  function open(path: string) {
+    navigate(`/s/${spaceId}/${path.split('/').map(encodeURIComponent).join('/')}`);
+  }
+
+  /** Pages open; a folder with its own page opens it (and expands), otherwise it expands or collapses. */
   function activate(node: TreeNode) {
-    if (node.kind === 'folder') toggle(node.path);
-    else navigate(`/s/${spaceId}/${node.path.split('/').map(encodeURIComponent).join('/')}`);
+    if (node.kind !== 'folder') return open(node.path);
+    const page = folderPage(node);
+    if (page && currentPath !== page.path) {
+      toggle(node.path, true);
+      open(page.path);
+    } else {
+      toggle(node.path);
+    }
   }
 
   // ----- Drag and drop (contracts/ui.md §6) -----
@@ -271,7 +310,10 @@ export const PageTree = forwardRef<PageTreeHandle, Props>(function PageTree(
       {visible.map((item, index) => {
         const { node, level } = item;
         const isFolder = node.kind === 'folder';
-        const isCurrent = node.path === currentPath;
+        const isCurrent = node.path === currentItem;
+        // A folder that only holds its own page behaves like a page.
+        const page = folderPage(node);
+        const expandable = isFolder && (node.children ?? []).some((c) => c.path !== page?.path);
         const title = node.title ?? node.name;
         return (
           <li
@@ -282,7 +324,7 @@ export const PageTree = forwardRef<PageTreeHandle, Props>(function PageTree(
             }}
             role="treeitem"
             aria-level={level}
-            aria-expanded={isFolder ? expanded.has(node.path) : undefined}
+            aria-expanded={expandable ? expanded.has(node.path) : undefined}
             aria-selected={isCurrent}
             aria-current={isCurrent ? 'page' : undefined}
             aria-haspopup="menu"
@@ -331,7 +373,7 @@ export const PageTree = forwardRef<PageTreeHandle, Props>(function PageTree(
             }}
           >
             <span aria-hidden="true" className="tree-item__icon">
-              {isFolder ? expanded.has(node.path) ? <ChevronDownIcon /> : <ChevronRightIcon /> : <FileTextIcon />}
+              {expandable ? expanded.has(node.path) ? <ChevronDownIcon /> : <ChevronRightIcon /> : <FileTextIcon />}
             </span>
             <span className="tree-item__label">{title}</span>
             <TreeItemMenu
