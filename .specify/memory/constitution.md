@@ -165,9 +165,23 @@ is added, which reinforces Principles II and III.
   - the result is shown in the application's document only as an image (e.g. an SVG
     `data:` image), never parsed into it as markup.
 
-  Any other client-side rendering of user content remains forbidden. The isolated
-  renderer's own policy MAY allow inline styles; it MUST NOT allow `eval`, inline
-  scripts, network connections or third-party origins.
+  The isolated renderer's own policy MAY allow inline styles; it MUST NOT allow `eval`,
+  inline scripts, network connections or third-party origins.
+- A visual (WYSIWYG) page editor MAY display the content being edited in the browser,
+  but only when all of the following hold:
+  - the display is built from a fixed, limited set of supported Markdown elements
+    (headings, paragraphs, emphasis, links, lists, quotes, code, tables, images, rules)
+    through a document schema, never by inserting markup derived from user content
+    (no `innerHTML` or equivalent);
+  - user-supplied HTML, styles and scripts are never interpreted: they are shown only as
+    text inside placeholders and preserved verbatim in the Markdown;
+  - link and image addresses are limited to the same schemes the server-side renderer
+    allows;
+  - diagram blocks are drawn only through the isolated renderer above;
+  - published pages, page versions and the source-mode preview still use the server-side
+    renderer.
+
+  Any other client-side rendering of user content remains forbidden.
 
 ## Technology Stack
 
@@ -214,4 +228,4 @@ is added, which reinforces Principles II and III.
 - Every plan and PR review MUST verify compliance with the Core Principles; deviations MUST
   be documented and justified in the plan's Complexity Tracking section or rejected.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-18
+**Version**: 1.4.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-21
