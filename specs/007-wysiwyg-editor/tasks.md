@@ -41,16 +41,17 @@ Conventions:
 
 ## Phase 1: Setup
 
-- [ ] T001 Add the shipped dependencies to `src/web/package.json` with **exact** versions (no `^`) and update `src/web/package-lock.json` with `npm install`:
+- [X] T001 Add the shipped dependencies to `src/web/package.json` with **exact** versions (no `^`) and update `src/web/package-lock.json` with `npm install`:
   - `prosemirror-model` 1.25.12, `prosemirror-state` 1.4.4, `prosemirror-view` 1.42.6, `prosemirror-transform` 1.12.2, `prosemirror-commands` 1.7.2, `prosemirror-keymap` 1.2.3;
   - `prosemirror-history` 1.5.1, `prosemirror-inputrules` 1.5.1, `prosemirror-schema-list` 1.5.1, `prosemirror-tables` 1.8.5, `prosemirror-gapcursor` 1.4.1, `prosemirror-dropcursor` 1.8.4;
   - promote `@lezer/markdown` 1.8.0 and `@lezer/common` 1.5.3 to direct dependencies, keeping the versions already in the lockfile.
 
   Then run `scripts/check-licenses.ps1` and confirm it passes with no new exceptions. Regenerate `THIRD-PARTY-NOTICES.md`.
-- [ ] T002 [P] Create the folder skeleton `src/web/src/visual/markdown/corpus/{commonmark,gfm,azure-devops,wiki,guard}/` with a `README.md` in `corpus/` explaining each folder (research R10). Exclude `corpus/` from the production bundle; it is only imported by `*.test.ts`.
-- [ ] T003 [P] Vendor the CommonMark spec examples as `corpus/commonmark/spec.json`, from the CommonMark spec version matching `@lezer/markdown`'s test suite. Add `corpus/commonmark/LICENSE.md` (CC-BY-SA 4.0, attribution to John MacFarlane and the source URL) and a note that the folder is test data, not shipped.
-- [ ] T004 [P] Add GFM extension examples (tables, task lists, strikethrough, autolinks) as `corpus/gfm/*.md`, one file per example, with `corpus/gfm/LICENSE.md` (attribution, CC-BY-SA 4.0).
-- [ ] T005 [P] Write the Azure DevOps-style fixture pages in `corpus/azure-devops/`. Each covers one shape from research R10:
+- [X] T002 [P] Create the folder skeleton `src/web/src/visual/markdown/corpus/{commonmark,gfm,azure-devops,wiki,guard}/` with a `README.md` in `corpus/` explaining each folder (research R10). Exclude `corpus/` from the production bundle; it is only imported by `*.test.ts`.
+- [X] T003 [P] Vendor the CommonMark spec examples as `corpus/commonmark/spec.json`, from the CommonMark spec version matching `@lezer/markdown`'s test suite. Add `corpus/commonmark/LICENSE.md` (CC-BY-SA 4.0, attribution to John MacFarlane and the source URL) and a note that the folder is test data, not shipped.
+- [X] T004 [P] Add GFM extension examples (tables, task lists, strikethrough, autolinks) as `corpus/gfm/*.md`, one file per example, with `corpus/gfm/LICENSE.md` (attribution, CC-BY-SA 4.0).
+  *Done as:* one file `corpus/gfm/examples.md` written for the project, modelled on the GFM spec, so no third-party licence applies.
+- [X] T005 [P] Write the Azure DevOps-style fixture pages in `corpus/azure-devops/`. Each covers one shape from research R10:
   - `toc-html-frontmatter.md`: front matter, `[[_TOC_]]`, an HTML block, inline `<br>`, an HTML comment;
   - `hand-wrapped-crlf.md`: CRLF endings, paragraphs wrapped at 80 columns, trailing two-space hard breaks;
   - `bom-no-final-newline.md`: UTF-8 BOM and no final newline;
@@ -62,11 +63,12 @@ Conventions:
   - `tables.md`: aligned and unaligned pipe tables, with and without leading or trailing pipes, escaped pipes;
   - `images-links.md`: relative, `/.attachments/`, `wiki:`, external and `mailto:` links and images, angle-bracket URLs, titles;
   - `hostile.md`: `<script>`, `<img onerror>`, `<style>`, `javascript:` and `vbscript:` links, `data:text/html` (for scenario W18).
-- [ ] T006 [P] Add a `corpus/wiki/` loader in `src/web/src/visual/markdown/corpus/index.ts` that collects fixtures with `import.meta.glob` (`?raw`):
+- [X] T006 [P] Add a `corpus/wiki/` loader in `src/web/src/visual/markdown/corpus/index.ts` that collects fixtures with `import.meta.glob` (`?raw`):
   - every `corpus/**/*.md` file;
   - every `specs/**/*.md` and the root `README.md`/`SECURITY.md` of the repository, via a relative glob, so real project Markdown is part of the corpus without copying it.
 
   Expose `corpusFiles(): { name: string; text: string }[]`, with the CommonMark and GFM examples expanded from `spec.json` and the `.md` files.
+  *Done as:* `specs/**/*.md` only; Vite's `server.fs.allow` admits folders, not single files, so `README.md`/`SECURITY.md` are not included. CRLF files in the corpus are protected by a `-text` entry in `.gitattributes`.
 - [ ] T007 [P] Seed a `visual` space ("Visual Lab") in `tests/e2e/server.mjs` the way the 005 `tree` space is seeded:
   - copy every file of `src/web/src/visual/markdown/corpus/azure-devops/` byte-for-byte (keep CRLF and BOM; use `Buffer` copies, not text);
   - add a generated `large.md` of about 100 KB (headings, paragraphs, lists, a table) for scenario W17;
@@ -84,8 +86,8 @@ on it.
 
 ### Tests first
 
-- [ ] T008 [P] Write `src/web/src/visual/markdown/style.test.ts` for `detectStyle(markdown)`. Cover every row of the research R6 table, including majority voting, ties (prefer the default), CRLF detection from the first line break, final newline, and defaults for an empty string.
-- [ ] T009 [P] Write `src/web/src/visual/markdown/urls.test.ts` covering contracts/fidelity.md §5 for `isAllowedUrl(url, kind: 'link'|'image')`, `resolvePageHref(href, spaceId, pagePath)` and `resolveImageSrc(src, spaceId, pagePath, attachments)`:
+- [X] T008 [P] Write `src/web/src/visual/markdown/style.test.ts` for `detectStyle(markdown)`. Cover every row of the research R6 table, including majority voting, ties (prefer the default), CRLF detection from the first line break, final newline, and defaults for an empty string.
+- [X] T009 [P] Write `src/web/src/visual/markdown/urls.test.ts` covering contracts/fidelity.md §5 for `isAllowedUrl(url, kind: 'link'|'image')`, `resolvePageHref(href, spaceId, pagePath)` and `resolveImageSrc(src, spaceId, pagePath, attachments)`:
   - relative, `../`, space-root `/`, `wiki:{space}/{path}`, `#frag`;
   - `http`, `https`, `mailto`;
   - `javascript:`, `vbscript:`, `file:`, `data:text/html` (disallowed);
@@ -93,26 +95,26 @@ on it.
   - percent-encoded segments, and paths that escape the space (rejected).
 
   Add a pin test that reads `src/Copernica/Rendering/HtmlSanitizerFactory.cs` as text (via `?raw` import) and asserts its `AllowedSchemes` array equals the `ALLOWED_SCHEMES` constant in `urls.ts`.
-- [ ] T010 [P] Write `src/web/src/visual/markdown/parse.test.ts`:
+- [X] T010 [P] Write `src/web/src/visual/markdown/parse.test.ts`:
   - one test per schema row of contracts/fidelity.md §1 (the node type produced and its attributes, including `src` offsets that slice exactly the block's text);
   - placeholders for every `kind` in data-model.md;
   - a totality test that `parse` never throws for 2 000 seeded pseudo-random strings and for every CommonMark example with random single-character deletions.
 
 ### Implementation
 
-- [ ] T011 Implement `src/web/src/visual/markdown/schema.ts`: the ProseMirror `Schema` with exactly the nodes and marks of contracts/fidelity.md §1.
+- [X] T011 Implement `src/web/src/visual/markdown/schema.ts`: the ProseMirror `Schema` with exactly the nodes and marks of contracts/fidelity.md §1.
   - Block nodes have attrs `src: { from: number; to: number } | null` (default `null`) and `srcId: number | null` (default `null`).
   - `raw_block` and `raw_inline` (attrs `source`, `kind`, `label`), `diagram` (attrs `source`, `syntax: 'fence'|'container'`), `image` (attrs `src`, `alt`, `title`) and `image_upload` (attrs `key`, `name`) are atoms.
   - `horizontal_rule` has a `marker` attr.
   - Marks: `strong`/`em` have a `marker` attr; `link` has `href`, `title`, `form: 'inline'|'reference'|'autolink'` and `ref`.
   - `toDOM` uses fixed tags and classes only. Links put `href` only when `isAllowedUrl` passes, otherwise `class="visual-link--blocked"` and no `href`.
   - `parseDOM` rules (used by paste) read only `href`, `src`, `alt`, `title`, `align` and `checked`, never `style` or `on*`.
-- [ ] T012 [P] Implement `src/web/src/visual/markdown/urls.ts` (makes T009 pass):
+- [X] T012 [P] Implement `src/web/src/visual/markdown/urls.ts` (makes T009 pass):
   - `ALLOWED_SCHEMES = ['http','https','mailto']`;
   - `isAllowedUrl`;
   - `resolvePageHref` (mirrors `WikiLinkRewriter.Resolve`/`ResolvePath` in `src/Copernica/Rendering/WikiLinkRewriter.cs:60-145` for `.md` targets, giving `/s/{space}/{path}`);
   - `resolveImageSrc` (pending upload → `previewUrl`; internal path → `/api/spaces/{space}/files/{path}`; `data:image/*` → itself; external → `null`, meaning "External image" frame).
-- [ ] T013 Implement `src/web/src/visual/markdown/lezer.ts`: the `@lezer/markdown` parser configured with `GFM` (`Table`, `TaskList`, `Strikethrough`, `Autolink`) plus project `MarkdownConfig` extensions (research R5), each producing a named node type:
+- [X] T013 Implement `src/web/src/visual/markdown/lezer.ts`: the `@lezer/markdown` parser configured with `GFM` (`Table`, `TaskList`, `Strikethrough`, `Autolink`) plus project `MarkdownConfig` extensions (research R5), each producing a named node type:
   - `FrontMatter`: `---` … `---` at offset 0 (after an optional BOM);
   - `AzureToc`: a line that is exactly `[[_TOC_]]` or `[[_TOSP_]]`;
   - `Container`: `:::` *name* … `:::`, with a `ContainerInfo` child;
@@ -122,8 +124,8 @@ on it.
   - `DefinitionList`: a term line followed by `: ` definition lines.
 
   Export `parser` and `parseTree(text)`.
-- [ ] T014 Implement `src/web/src/visual/markdown/style.ts` (makes T008 pass): `detectStyle(text, tree?) → FileStyle` exactly as typed in data-model.md "FileStyle", with the defaults of research R6.
-- [ ] T015 Implement `src/web/src/visual/markdown/parse.ts` (makes T010 pass). `parse(markdown) → { doc, snapshot }`, where `snapshot = { text, style, preamble }`:
+- [X] T014 Implement `src/web/src/visual/markdown/style.ts` (makes T008 pass): `detectStyle(text, tree?) → FileStyle` exactly as typed in data-model.md "FileStyle", with the defaults of research R6.
+- [X] T015 Implement `src/web/src/visual/markdown/parse.ts` (makes T010 pass). `parse(markdown) → { doc, snapshot }`, where `snapshot = { text, style, preamble }`:
   - walk the Lezer tree and map node types per contracts/fidelity.md §1;
   - set `src`/`srcId` on every block (`srcId` = source order index across all nesting levels);
   - keep soft line breaks as `soft_break` nodes;
@@ -134,7 +136,7 @@ on it.
   - the BOM goes into `snapshot.preamble`.
 
   Must never throw: wrap per-block conversion, and on error emit that block as `raw_block` with `kind: 'unknown'`.
-- [ ] T016 Implement `src/web/src/visual/markdown/fresh.ts`: `freshBlock(node, style, ctx) → string` and `freshInline(fragment, style) → string`. These produce new Markdown for nodes without usable source, per S6 and S7:
+- [X] T016 Implement `src/web/src/visual/markdown/fresh.ts`: `freshBlock(node, style, ctx) → string` and `freshInline(fragment, style) → string`. These produce new Markdown for nodes without usable source, per S6 and S7:
   - ATX or setext headings per style;
   - list markers and indent (copying the nearest sibling when `ctx.siblingMarker` is given);
   - ordered numbering per style;
@@ -163,12 +165,12 @@ exists.
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Write `src/web/src/visual/markdown/fidelity.test.ts` over `corpusFiles()` (T006):
+- [X] T017 [P] [US2] Write `src/web/src/visual/markdown/fidelity.test.ts` over `corpusFiles()` (T006):
   - **round trip** (S1): `serialize(parse(x).doc, snapshot) === x`, reporting file, example number and a minimal line diff on failure;
   - **single-block edit** (S3): for every leaf textblock with text, apply a ProseMirror transaction inserting `"Z"` after its first character. Serialize and assert that every differing line of a line diff against `x` lies within the block's source line range. For paragraphs and headings, assert exactly one line differs.
 
   Print a summary `round trip: N/N files identical`, `single-block edits: M/M local`. Files in `corpus/guard/` are excluded from round trip and covered by T020.
-- [ ] T018 [P] [US2] Write `src/web/src/visual/markdown/serialize.test.ts` for S2–S10:
+- [X] T018 [P] [US2] Write `src/web/src/visual/markdown/serialize.test.ts` for S2–S10:
   - equivalence after undo and retype (FR-009);
   - a changed list item among `*` siblings with 4-space indent (only its lines change, S4);
   - a changed paragraph inside `> ` quotes keeps the prefix, including a lazy continuation line;
@@ -183,14 +185,14 @@ exists.
   - reference link forms are kept when the line changes;
   - table cell edits rewrite only that table;
   - moving a placeholder moves its exact text.
-- [ ] T019 [P] [US2] Add `SaveUnchangedContent_CreatesNoCommit` to `tests/Copernica.IntegrationTests/Editing/SaveTests.cs`: save a page with exactly its current source and base. Expect 200 `SaveResult` with the current tip version, the remote branch tip unchanged, and no new commit.
-- [ ] T020 [P] [US2] Add `corpus/guard/` fixtures that the load-time guard must reject or accept, and `src/web/src/visual/markdown/guard.test.ts` asserting `isRoundTripSafe` for them.
+- [X] T019 [P] [US2] Add `SaveUnchangedContent_CreatesNoCommit` to `tests/Copernica.IntegrationTests/Editing/SaveTests.cs`: save a page with exactly its current source and base. Expect 200 `SaveResult` with the current tip version, the remote branch tip unchanged, and no new commit.
+- [X] T020 [P] [US2] Add `corpus/guard/` fixtures that the load-time guard must reject or accept, and `src/web/src/visual/markdown/guard.test.ts` asserting `isRoundTripSafe` for them.
   - Write `unsafe-sample.md` by forcing a known mismatch through a test-only hook: `isRoundTripSafe(text, { serializeOverride })`.
   - Assert real corpus files return `true`.
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Implement `src/web/src/visual/markdown/serialize.ts`: `serialize(doc, snapshot) → string` per research R4 and S1–S10:
+- [X] T021 [US2] Implement `src/web/src/visual/markdown/serialize.ts`: `serialize(doc, snapshot) → string` per research R4 and S1–S10:
   - identity fast path via a `WeakSet` of nodes created by `parse` (exported from `parse.ts` as `parsedNodes`);
   - canonical comparison `canon(node)` (type, attrs minus `src`/`srcId`/`marker`/`form`, text, marks) against `canon(parse(slice))`, cached per `srcId`;
   - original gaps between blocks with consecutive `srcId`s, both emitted from source;
@@ -199,9 +201,9 @@ exists.
   - otherwise `freshBlock` with the file style.
 
   Prepend `snapshot.preamble` and apply `style.finalNewline`.
-- [ ] T022 [US2] Add `isRoundTripSafe(markdown, opts?)` to `src/web/src/visual/markdown/index.ts`, which re-exports `parse`, `serialize`, `detectStyle`, `isRoundTripSafe`, `schema` and the URL helpers. Iterate on T015, T016 and T021 until T017, T018 and T020 pass with 0 failures. Any corpus shape that cannot be made safe becomes an explicit placeholder in `lezer.ts`/`parse.ts`, never a skipped test.
-- [ ] T023 [P] [US2] Create `src/web/src/pages/ReviewChangesDialog.tsx`: a `ui` Dialog titled "Review changes". It shows `<DiffView from={pristine} to={current} label="Changes to the page file" />` (`src/web/src/components/DiffView.tsx`), or the text "No changes" when the two are equal. Focus returns to the opener on close (contracts/ui.md §1).
-- [ ] T024 [US2] In `src/web/src/pages/PageEdit.tsx`:
+- [X] T022 [US2] Add `isRoundTripSafe(markdown, opts?)` to `src/web/src/visual/markdown/index.ts`, which re-exports `parse`, `serialize`, `detectStyle`, `isRoundTripSafe`, `schema` and the URL helpers. Iterate on T015, T016 and T021 until T017, T018 and T020 pass with 0 failures. Any corpus shape that cannot be made safe becomes an explicit placeholder in `lezer.ts`/`parse.ts`, never a skipped test.
+- [X] T023 [P] [US2] Create `src/web/src/pages/ReviewChangesDialog.tsx`: a `ui` Dialog titled "Review changes". It shows `<DiffView from={pristine} to={current} label="Changes to the page file" />` (`src/web/src/components/DiffView.tsx`), or the text "No changes" when the two are equal. Focus returns to the opener on close (contracts/ui.md §1).
+- [X] T024 [US2] In `src/web/src/pages/PageEdit.tsx`:
   - add a "Review changes" button next to the mode toggle area (visible in both modes) that opens `ReviewChangesDialog`;
   - add the no-change save rule (FR-012, contracts/ui.md §9): for an existing page, when `draft.markdown === pristine`, do not send the save request, do not require a change description, announce "No changes to save" in the live region, and keep the editor open.
 

@@ -19,6 +19,7 @@ import { useShortcut } from '../shortcuts';
 import { AlertDialog, Button, Callout, Dialog, Field, Tabs, useToast } from '../ui';
 import { ConflictView, type EditConflict } from './ConflictView';
 import { ImageDescriptionDialog } from './ImageDescriptionDialog';
+import { ReviewChangesDialog } from './ReviewChangesDialog';
 import { StateIndicators } from './StateIndicators';
 import './PageEdit.css';
 
@@ -105,6 +106,9 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   const [saving, setSaving] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [signInAgain, setSignInAgain] = useState<'local' | 'challenge'>();
+  const [reviewing, setReviewing] = useState(false);
+  /** Polite status for the live region (007: "No changes to save", mode switches). */
+  const [status, setStatus] = useState('');
   const [tab, setTab] = useState<EditorTab>(() => loadTab(wide));
   const messageInput = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorView | null>(null);
@@ -139,6 +143,9 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   useEffect(() => {
     if (draft && (restored || draft.markdown !== pristine)) saveDraft(spaceId, path, draft);
   }, [draft, pristine, restored, spaceId, path]);
+
+  // A status such as "No changes to save" no longer applies once the text changes.
+  useEffect(() => setStatus(''), [draft?.markdown]);
 
   const attachmentIds = useMemo(() => (draft?.attachments ?? []).map((a) => a.id), [draft?.attachments]);
   const preview = usePreview(spaceId, path, draft?.markdown ?? '', shownTab !== 'write', attachmentIds);
@@ -188,6 +195,13 @@ export function PageEdit({ space, path, isNew = false }: Props) {
     event?.preventDefault();
     if (saving) return;
     const toSave = { ...current, ...override };
+    // 007 FR-012: a file identical to the one the edit started from is not saved at all.
+    if (!override && !isNew && toSave.markdown === pristine) {
+      setMessageError(undefined);
+      setStatus('');
+      requestAnimationFrame(() => setStatus('No changes to save'));
+      return;
+    }
     if (!toSave.message.trim()) {
       setMessageError('Describe your change.');
       messageInput.current?.focus();
@@ -301,6 +315,11 @@ export function PageEdit({ space, path, isNew = false }: Props) {
           }
         />
       )}
+      <div className="page-edit__modebar">
+        <Button size="sm" onClick={() => setReviewing(true)}>
+          Review changes
+        </Button>
+      </div>
       {shownTab !== 'preview' && (
         <div className="page-edit__toolbar">
           <Button
@@ -382,8 +401,13 @@ export function PageEdit({ space, path, isNew = false }: Props) {
         </Callout>
       ))}
       <div className="visually-hidden" role="status" aria-live="polite">
-        {images.announcement}
+        {[images.announcement, status].filter(Boolean).join(' ')}
       </div>
+      {status === 'No changes to save' && (
+        <p className="muted page-edit__status" aria-hidden="true">
+          No changes to save
+        </p>
+      )}
       {error && (
         <Callout tone="danger" title="Your change was not saved." onDismiss={() => setError(undefined)}>
           {error}
@@ -440,6 +464,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
           <Button onClick={() => (changed ? setDiscarding(true) : leave())}>Cancel</Button>
         </div>
       </div>
+      <ReviewChangesDialog open={reviewing} onOpenChange={setReviewing} from={isNew ? '' : (pristine ?? '')} to={current.markdown} />
       <AlertDialog
         open={discarding}
         onOpenChange={setDiscarding}

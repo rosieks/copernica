@@ -42,6 +42,24 @@ public sealed class SaveTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Saving_unchanged_content_creates_no_commit()
+    {
+        // 007 FR-012: the visual editor relies on an identical save never reaching git history.
+        var client = await _factory.SignInAsync("alice");
+        var page = await client.GetPageAsync("docs", "index.md");
+        var before = _remote.Log();
+
+        var response = await client.SaveAsync("docs", "index.md", WikiApi.BaseOf(page), "# Home\n\nWelcome.\n", "Nothing changed");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.JsonAsync();
+        var after = _remote.Log();
+        Assert.Equal(before.Count, after.Count);
+        Assert.Equal(before[0].Sha, after[0].Sha);
+        Assert.Equal(before[0].Sha, result.GetProperty("version").GetProperty("commitId").GetString());
+    }
+
+    [Fact]
     public async Task User_without_email_gets_the_fallback_address()
     {
         var client = await _factory.SignInAsync("bob");
