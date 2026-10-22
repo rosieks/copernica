@@ -69,7 +69,7 @@ Conventions:
 
   Expose `corpusFiles(): { name: string; text: string }[]`, with the CommonMark and GFM examples expanded from `spec.json` and the `.md` files.
   *Done as:* `specs/**/*.md` only; Vite's `server.fs.allow` admits folders, not single files, so `README.md`/`SECURITY.md` are not included. CRLF files in the corpus are protected by a `-text` entry in `.gitattributes`.
-- [ ] T007 [P] Seed a `visual` space ("Visual Lab") in `tests/e2e/server.mjs` the way the 005 `tree` space is seeded:
+- [X] T007 [P] Seed a `visual` space ("Visual Lab") in `tests/e2e/server.mjs` the way the 005 `tree` space is seeded:
   - copy every file of `src/web/src/visual/markdown/corpus/azure-devops/` byte-for-byte (keep CRLF and BOM; use `Buffer` copies, not text);
   - add a generated `large.md` of about 100 KB (headings, paragraphs, lists, a table) for scenario W17;
   - add `guides/target-page.md` (`# Target page`) for link tests.
@@ -223,7 +223,7 @@ tables and quotes, saving through the US2 serializer.
 
 ### Tests for User Story 1
 
-- [ ] T025 [P] [US1] Write `src/web/src/visual/commands.test.ts` (jsdom, a real `EditorView`) covering:
+- [X] T025 [P] [US1] Write `src/web/src/visual/commands.test.ts` (jsdom, a real `EditorView`) covering:
   - toggling each mark;
   - block type changes keeping text;
   - wrap and unwrap of every list type;
@@ -234,34 +234,34 @@ tables and quotes, saving through the US2 serializer.
   - "/" menu filtering and insert.
 
   After each command, also assert `serialize()` output for a small fixture to prove the edit is local.
-- [ ] T026 [P] [US1] Write `tests/e2e/us9-visual-editor.spec.ts` scenarios W1–W8 against the `visual` space (T007). Assert commits through `state().visual` like `us8-tree.spec.ts` does:
+- [X] T026 [P] [US1] Write `tests/e2e/us9-visual-editor.spec.ts` scenarios W1–W8 against the `visual` space (T007). Assert commits through `state().visual` like `us8-tree.spec.ts` does:
   - W4/W8: no new commit;
   - W5: `git show --stat` and exact bytes of the changed line, including `\r\n`.
 
 ### Implementation for User Story 1
 
-- [ ] T027 [P] [US1] Create `src/web/src/editor/editorMode.ts`, modelled on `src/web/src/shortcuts/preference.ts`:
+- [X] T027 [P] [US1] Create `src/web/src/editor/editorMode.ts`, modelled on `src/web/src/shortcuts/preference.ts`:
   - `EDITOR_MODE_KEY = 'copernica.editorMode'`, values `"visual" | "markdown"`, default `"visual"` (absent ⇒ visual), unknown values ⇒ default;
   - `loadEditorMode()` and `storeEditorMode(mode)`, with storage errors caught (data-model.md "Interface preference").
-- [ ] T028 [US1] Implement `src/web/src/visual/commands.ts`:
+- [X] T028 [US1] Implement `src/web/src/visual/commands.ts`:
   - mark toggles (new `strong`/`em` marks take `marker` from `FileStyle`);
   - `setBlockType` for paragraph, heading 1–6 and code block;
   - list wrap and unwrap (`prosemirror-schema-list`), quote wrap and lift, task-item toggle;
   - insert horizontal rule, insert a 3×3 table (header row), table row, column and alignment commands (`prosemirror-tables`);
   - active-state queries `isMarkActive`, `currentBlockType`, `isInList(type)`, `isInTable`.
-- [ ] T029 [US1] Implement `src/web/src/visual/plugins.ts`:
+- [X] T029 [US1] Implement `src/web/src/visual/plugins.ts`:
   - `history()`;
   - a keymap with the shortcuts of contracts/ui.md §2 (Ctrl/⌘+B/I/E/K, Ctrl/⌘+Shift+X/7/8/9/., Ctrl+Alt+0–6, Undo/Redo) plus `baseKeymap`, `splitListItem`/`liftListItem`/`sinkListItem`, and `goToNextCell` for Tab;
   - input rules for §3;
   - `columnResizing` off, `tableEditing()`, `gapCursor()`, `dropCursor()`.
 
   Ctrl/⌘+S must not be swallowed: leave it unhandled so `useShortcut` in `PageEdit` still saves.
-- [ ] T030 [US1] Implement the "/" menu state as a ProseMirror plugin plus `src/web/src/visual/SlashMenu.tsx`, following contracts/ui.md §4:
+- [X] T030 [US1] Implement the "/" menu state as a ProseMirror plugin plus `src/web/src/visual/SlashMenu.tsx`, following contracts/ui.md §4:
   - opens when `/` is typed at the start of an empty paragraph;
   - combobox/listbox ARIA with the editor keeping focus (`aria-expanded`, `aria-controls`, `aria-activedescendant` set on the editor DOM through `EditorView.setProps({attributes})`);
   - the item list of §4, case-insensitive substring filter, ↑/↓/Enter/Esc, "No matching blocks";
   - positioned with `view.coordsAtPos`, using CSS classes plus custom properties set via `element.style.setProperty`, which is allowed CSSOM.
-- [ ] T031 [US1] Implement `src/web/src/visual/Toolbar.tsx` following contracts/ui.md §2:
+- [X] T031 [US1] Implement `src/web/src/visual/Toolbar.tsx` following contracts/ui.md §2:
   - WAI-ARIA toolbar with roving tabindex (Home/End/arrows);
   - a block type `ui` Select;
   - mark buttons with `aria-pressed`;
@@ -270,28 +270,28 @@ tables and quotes, saving through the US2 serializer.
   - below 768 px (`useMediaQuery`), the secondary actions move into a "More formatting" `ui` DropdownMenu.
 
   Image, diagram and link buttons call callbacks passed in as props (wired in US4). Until then, Image uses the existing file input and Diagram and Link are hidden.
-- [ ] T032 [P] [US1] Implement `src/web/src/visual/TableMenu.tsx` (contracts/ui.md §7), opened from the Table toolbar button while the cursor is in a table. It offers insert row above/below, insert column left/right, delete row/column/table, and align column left/center/right. Deleting the header row is disabled while other rows exist.
-- [ ] T033 [US1] Implement `src/web/src/visual/nodeViews.ts` for `raw_block`/`raw_inline` placeholders (contracts/ui.md §5):
+- [X] T032 [P] [US1] Implement `src/web/src/visual/TableMenu.tsx` (contracts/ui.md §7), opened from the Table toolbar button while the cursor is in a table. It offers insert row above/below, insert column left/right, delete row/column/table, and align column left/center/right. Deleting the header row is disabled while other rows exist.
+- [X] T033 [US1] Implement `src/web/src/visual/nodeViews.ts` for `raw_block`/`raw_inline` placeholders (contracts/ui.md §5):
   - built with `createElement` and `textContent` only;
   - `role="group"`, `aria-label="{label}, can be edited in Markdown mode"`, a tooltip, the first source line truncated in monospace;
   - selectable via NodeSelection with a visible focus ring;
   - `contenteditable=false`.
 
   Add a `horizontal_rule` view, and a plain `image` view that uses `resolveImageSrc` with an "External image (not shown in the editor)" frame for `null`.
-- [ ] T034 [US1] Create `src/web/src/visual/visual.css`:
+- [X] T034 [US1] Create `src/web/src/visual/visual.css`:
   - editor typography matching the published page styles;
   - toolbar, menus, placeholder chips, the blocked-link style, table cell selection and the gap cursor;
   - focus rings and both themes via existing tokens.
 
   Import `prosemirror-view/style/prosemirror.css`, `prosemirror-tables/style/tables.css` and `prosemirror-gapcursor/style/gapcursor.css` as files.
-- [ ] T035 [US1] Implement `src/web/src/visual/VisualEditor.tsx`. Props: `{ value: string; onChange(markdown: string): void; label: string; spaceId; pagePath; attachments; editorRef?; onAnnounce(text) }`.
+- [X] T035 [US1] Implement `src/web/src/visual/VisualEditor.tsx`. Props: `{ value: string; onChange(markdown: string): void; label: string; spaceId; pagePath; attachments; editorRef?; onAnnounce(text) }`.
   - On mount: `parse(value)`, then the load-time guard `isRoundTripSafe(value)`. On failure, call `onGuardFailure()` (prop) and render nothing.
   - Create the `EditorView` with schema, plugins and node views, and `attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': label }`.
   - Serialize on a 200 ms idle debounce → `onChange`. `editorRef.current.flush()` serializes synchronously; `PageEdit` calls it before save, mode switch and review.
   - Announce formatting changes ("Bold on/off", block names).
   - Destroy the view on unmount.
   - Default export, so it can be loaded with `React.lazy`.
-- [ ] T036 [US1] Integrate in `src/web/src/pages/PageEdit.tsx`:
+- [X] T036 [US1] Integrate in `src/web/src/pages/PageEdit.tsx`:
   - a segmented "Visual | Markdown" toggle (`aria-pressed`) above the editor (contracts/ui.md §1), with the initial mode from `loadEditorMode()`;
   - in visual mode render `React.lazy(() => import('../visual/VisualEditor'))` in a Suspense with a loading state, and hide the Write/Preview/Split tabs;
   - in Markdown mode, keep today's layout unchanged (FR-018);
@@ -300,7 +300,7 @@ tables and quotes, saving through the US2 serializer.
   - the existing "Insert image" button is shown inside the visual toolbar in visual mode.
 
   For this phase, switching re-mounts the other editor with the current `draft.markdown` (cursor mapping comes in US3).
-- [ ] T037 [US1] Verify FR-026: add a test to `src/web/src/shortcuts/shortcuts.test.ts` that single-key shortcuts do not fire for keydown events inside a `contenteditable="true"` element with `role="textbox"` (`useShortcuts.ts:35-39` already covers this; the test pins it).
+- [X] T037 [US1] Verify FR-026: add a test to `src/web/src/shortcuts/shortcuts.test.ts` that single-key shortcuts do not fire for keydown events inside a `contenteditable="true"` element with `role="textbox"` (`useShortcuts.ts:35-39` already covers this; the test pins it).
 
 **Checkpoint**: MVP. Business users edit visually and saves are byte-preserving. Scenarios
 W1–W8 pass.
@@ -316,18 +316,18 @@ FR-019 fallback.
 
 ### Tests for User Story 3
 
-- [ ] T038 [P] [US3] Write `src/web/src/visual/markdown/modeSwitch.test.ts`:
+- [X] T038 [P] [US3] Write `src/web/src/visual/markdown/modeSwitch.test.ts`:
   - M1 over the corpus (`serialize(parse(t)) === t` after a simulated Markdown-mode edit sequence of insertions, deletions and pasted Markdown);
   - M2 cursor mapping both ways for headings, nested list items, table cells, placeholders and document start/end.
-- [ ] T039 [P] [US3] Add scenarios W9 and W10 to `tests/e2e/us9-visual-editor.spec.ts`. W9: edits in both modes, reopen the editor and check the stored mode. W10: the guard fallback message, and the preference not changed.
+- [X] T039 [P] [US3] Add scenarios W9 and W10 to `tests/e2e/us9-visual-editor.spec.ts`. W9: edits in both modes, reopen the editor and check the stored mode. W10: the guard fallback message, and the preference not changed.
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Add `positionToSourceOffset(state, snapshot)` and `sourceOffsetToPosition(doc, offset)` to `src/web/src/visual/markdown/cursor.ts`: map to the innermost block via `src`, or to document start when there is none (M2).
-- [ ] T041 [US3] In `src/web/src/pages/PageEdit.tsx`, the visual editor (`VisualEditor.tsx`) and `src/web/src/components/MarkdownEditor.tsx`:
+- [X] T040 [US3] Add `positionToSourceOffset(state, snapshot)` and `sourceOffsetToPosition(doc, offset)` to `src/web/src/visual/markdown/cursor.ts`: map to the innermost block via `src`, or to document start when there is none (M2).
+- [X] T041 [US3] In `src/web/src/pages/PageEdit.tsx`, the visual editor (`VisualEditor.tsx`) and `src/web/src/components/MarkdownEditor.tsx`:
   - expose `getCursorOffset()`/`setCursorOffset(offset)` on both editor refs;
   - on switch, flush, store the mode with `storeEditorMode` (FR-017), move the cursor to the mapped offset, and announce "Visual mode" or "Markdown mode".
-- [ ] T042 [US3] Implement the FR-019 fallback in `src/web/src/pages/PageEdit.tsx`. When `VisualEditor` reports a guard failure (on open or on a Markdown → visual switch):
+- [X] T042 [US3] Implement the FR-019 fallback in `src/web/src/pages/PageEdit.tsx`. When `VisualEditor` reports a guard failure (on open or on a Markdown → visual switch):
   - show the info callout "This page uses Markdown the visual editor can't edit safely, so it opened in Markdown mode." (contracts/ui.md §9);
   - stay in Markdown mode **without** calling `storeEditorMode`.
 
@@ -343,12 +343,12 @@ FR-019 fallback.
 
 ### Tests for User Story 4
 
-- [ ] T043 [P] [US4] Write `src/web/src/visual/imageInput.test.ts`:
+- [X] T043 [P] [US4] Write `src/web/src/visual/imageInput.test.ts`:
   - pasting or dropping image files inserts `image_upload` at the position;
   - `describe(alt)` replaces it with `image { src: attachment.link, alt }`;
   - if the placeholder was deleted, the image is appended at the end (like `onAppend`);
   - `image_upload` is never serialized.
-- [ ] T044 [P] [US4] Write `src/web/src/visual/LinkDialog.test.tsx`:
+- [X] T044 [P] [US4] Write `src/web/src/visual/LinkDialog.test.tsx`:
   - filtering the tree (title and path, case-insensitive, max 50 results);
   - the relative `.md` link computed from the current page path to the target, percent-encoded per segment (e.g. from `guides/a.md` to `reference/api.md` gives `../reference/api.md`);
   - link text defaulting to the page title;
@@ -358,23 +358,23 @@ FR-019 fallback.
 
 ### Implementation for User Story 4
 
-- [ ] T046 [US4] Implement `src/web/src/visual/imageInput.ts`: ProseMirror `handlePaste` and `handleDrop` props that pick image files (reuse `pickImageFiles` from `src/web/src/editor/imageInput.ts`) and drive the existing `useImageUploads` (`src/web/src/editor/useImageUploads.ts`) through an adapter implementing the same `insertPlaceholder`/`replacePlaceholder`/`onAppend` callbacks with `image_upload` nodes. The alt-text prompt is the existing `ImageDescriptionDialog` (FR-020).
-- [ ] T047 [US4] Add the `image_upload` chip ("Uploading {name}…" with progress) and the image selection popover to `src/web/src/visual/nodeViews.ts`. The popover offers "Change description" (opens `ImageDescriptionDialog` prefilled and updates `alt`) and "Remove" (contracts/ui.md §5).
-- [ ] T048 [US4] Implement the `diagram` node view in `src/web/src/visual/nodeViews.ts`:
+- [X] T046 [US4] Implement `src/web/src/visual/imageInput.ts`: ProseMirror `handlePaste` and `handleDrop` props that pick image files (reuse `pickImageFiles` from `src/web/src/editor/imageInput.ts`) and drive the existing `useImageUploads` (`src/web/src/editor/useImageUploads.ts`) through an adapter implementing the same `insertPlaceholder`/`replacePlaceholder`/`onAppend` callbacks with `image_upload` nodes. The alt-text prompt is the existing `ImageDescriptionDialog` (FR-020).
+- [X] T047 [US4] Add the `image_upload` chip ("Uploading {name}…" with progress) and the image selection popover to `src/web/src/visual/nodeViews.ts`. The popover offers "Change description" (opens `ImageDescriptionDialog` prefilled and updates `alt`) and "Remove" (contracts/ui.md §5).
+- [X] T048 [US4] Implement the `diagram` node view in `src/web/src/visual/nodeViews.ts`:
   - draw through `rendererClient().render(source, theme)` (`src/web/src/diagrams/rendererClient.ts`) and show `<img src={svgImageSrc(svg)}>` (`src/web/src/diagrams/display.ts`) with an accessible name;
   - states "Drawing diagram…" and the 004 error state;
   - redraw when the `dark` class on `<html>` changes;
   - when selected, offer "Edit diagram" (Enter) and "Remove".
-- [ ] T049 [US4] Implement `src/web/src/visual/DiagramDialog.tsx` (contracts/ui.md §8):
+- [X] T049 [US4] Implement `src/web/src/visual/DiagramDialog.tsx` (contracts/ui.md §8):
   - a `ui` Dialog "Edit diagram" with a CodeMirror field labelled "Diagram source" and a live drawing (300 ms debounce) beside it, or below it under 768 px;
   - Apply updates the node's `source` (keeping `syntax`); Cancel or Esc changes nothing;
   - a new diagram starts with `flowchart TD\n  A --> B` and `syntax: 'fence'`.
-- [ ] T050 [US4] Implement `src/web/src/visual/LinkDialog.tsx` (contracts/ui.md §6, makes T044 pass):
+- [X] T050 [US4] Implement `src/web/src/visual/LinkDialog.tsx` (contracts/ui.md §6, makes T044 pass):
   - tabs "Page in this space" (search the cached `['tree', spaceId]` query with `useQuery`; flatten pages as `MoveDialog` does with folders in `src/web/src/components/TreeDialogs.tsx`) and "Web address";
   - insert or update the `link` mark with `form: 'inline'`;
   - a link popover with target title, "Open" (new tab, only for allowed URLs), "Edit link" and "Remove link";
   - focus returns to the editor selection.
-- [ ] T051 [US4] Wire the toolbar's Image, Diagram and Link buttons, the "/" menu items "Image", "Diagram" and "Link to page", and Ctrl/⌘+K in `src/web/src/visual/Toolbar.tsx`, `SlashMenu.tsx` and `plugins.ts` to T046–T050.
+- [X] T051 [US4] Wire the toolbar's Image, Diagram and Link buttons, the "/" menu items "Image", "Diagram" and "Link to page", and Ctrl/⌘+K in `src/web/src/visual/Toolbar.tsx`, `SlashMenu.tsx` and `plugins.ts` to T046–T050.
 
 **Checkpoint**: everyday content (screenshots, diagrams, cross-links) can be created
 without any syntax.
@@ -389,7 +389,7 @@ without any syntax.
 
 ### Tests for User Story 5
 
-- [ ] T052 [P] [US5] Write `src/web/src/visual/paste.test.ts` with Word, Google Docs and web-page HTML samples:
+- [X] T052 [P] [US5] Write `src/web/src/visual/paste.test.ts` with Word, Google Docs and web-page HTML samples:
   - headings, lists, links, tables, bold and italic are kept;
   - `style`, `class`, `mso-*`, `<o:p>`, conditional comments, `<script>`, `<style>`, `<meta>` and `on*` are dropped;
   - `javascript:` links lose their `href`;
@@ -400,7 +400,7 @@ without any syntax.
 
 ### Implementation for User Story 5
 
-- [ ] T054 [US5] Implement `src/web/src/visual/paste.ts`:
+- [X] T054 [US5] Implement `src/web/src/visual/paste.ts`:
   - `transformPastedHTML`, which strips Office debris (research R12);
   - a `transformPasted` step that removes `image` nodes whose `src` is not internal or `data:image/*` and reports the count through `onAnnounce` ("N images from other sites were not inserted — paste or upload the image files instead");
   - `clipboardTextParser` for Ctrl/⌘+Shift+V, inserting paragraphs;

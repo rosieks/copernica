@@ -16,6 +16,10 @@ test.describe('002 US3 — operate everything with the keyboard', () => {
     await expect(page).toHaveURL(/\/-\/edit\/guides\/setup\.md$/);
     await expect(page.getByRole('heading', { level: 1, name: /Editing/ })).toBeFocused();
 
+    // An unchanged page is not saved at all (007 FR-012), so make a change first.
+    await page.getByRole('textbox', { name: 'Page content (Markdown)' }).click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.insertText('\nSaved with the keyboard.\n');
     await page.getByLabel('Change description').fill('');
     await page.keyboard.press('ControlOrMeta+s');
     const description = page.getByLabel('Change description');
@@ -75,6 +79,10 @@ test.describe('002 US3 — operate everything with the keyboard', () => {
     await expect(second.getByLabel(/Enable single-key shortcuts/)).not.toBeChecked();
 
     await page.goto('/s/handbook/-/edit/guides/setup.md');
+    // An unchanged page is not saved at all (007 FR-012), so make a change first.
+    await page.getByRole('textbox', { name: 'Page content (Markdown)' }).click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.insertText('\nModifier save.\n');
     await page.getByLabel('Change description').fill('Modifier save still works');
     await page.keyboard.press('ControlOrMeta+s');
     await expect(page).toHaveURL(/\/s\/handbook\/guides\/setup\.md$/);

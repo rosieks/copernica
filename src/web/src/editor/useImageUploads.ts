@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState, type MutableRefObject } from 'react';
-import type { EditorView } from '@codemirror/view';
 import type { DraftAttachment } from '../drafts';
 import { imageMarkdown } from './altText';
-import { insertPlaceholder, removePlaceholder, replacePlaceholder } from './placeholders';
+import type { ImageTarget } from './imageTarget';
 import { checkFile, uploadErrorText, uploadImage, type UploadLimits } from './uploads';
 
 export interface UploadRow {
@@ -28,7 +27,8 @@ interface Options {
   spaceId: string;
   path: string;
   limits: UploadLimits;
-  editorRef: MutableRefObject<EditorView | null>;
+  /** The editor that shows placeholders and receives the images (Markdown or visual, 007). */
+  target: MutableRefObject<ImageTarget | null>;
   /** A finished upload joins the edit's pending images. */
   onAttachment: (attachment: DraftAttachment) => void;
   /** Used when the placeholder is gone (e.g. the editor tab was switched): append instead. */
@@ -39,7 +39,7 @@ interface Options {
  * The editor's image flow (003 contracts/ui.md): check → placeholder → upload with progress →
  * describe → replace the placeholder with the reference. Errors never touch the text.
  */
-export function useImageUploads({ spaceId, path, limits, editorRef, onAttachment, onAppend }: Options) {
+export function useImageUploads({ spaceId, path, limits, target, onAttachment, onAppend }: Options) {
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [rejections, setRejections] = useState<Rejection[]>([]);
   const [queue, setQueue] = useState<Completed[]>([]);
@@ -53,8 +53,8 @@ export function useImageUploads({ spaceId, path, limits, editorRef, onAttachment
 
   const onFiles = useCallback(
     (files: File[], pos?: number) => {
-      const view = editorRef.current;
-      let insertAt = pos ?? view?.state.selection.main.head ?? 0;
+      const editor = target.current;
+      let insertAt = pos ?? editor?.cursor() ?? 0;
       for (const file of files) {
         const name = file.name || 'image.png';
         const problem = checkFile(file, limits);
@@ -64,10 +64,7 @@ export function useImageUploads({ spaceId, path, limits, editorRef, onAttachment
         }
 
         const key = `u${++counter}`;
-        if (view) {
-          insertPlaceholder(view, Math.min(insertAt, view.state.doc.length), key, name);
-          insertAt = view.state.selection.main.head;
-        }
+        if (editor) insertAt = editor.insertPlaceholder(insertAt, key, name);
         setUploads((u) => [...u, { key, name, progress: 0 }]);
         setAnnouncement(`Uploading ${name}`);
         uploadImage(spaceId, path, file, (progress) => setUploads((u) => u.map((row) => (row.key === key ? { ...row, progress } : row))))
@@ -85,13 +82,13 @@ export function useImageUploads({ spaceId, path, limits, editorRef, onAttachment
             setQueue((q) => [...q, { key, attachment }]);
           })
           .catch((error: unknown) => {
-            if (editorRef.current) removePlaceholder(editorRef.current, key);
+            target.current?.removePlaceholder(key);
             reject(name, uploadErrorText(error).replace(/\.$/, ''));
           })
           .finally(() => setUploads((u) => u.filter((row) => row.key !== key)));
       }
     },
-    [editorRef, limits, spaceId, path, onAttachment, reject],
+    [target, limits, spaceId, path, onAttachment, reject],
   );
 
   /** The description of the first queued image was chosen: insert its reference. */
@@ -99,19 +96,12 @@ export function useImageUploads({ spaceId, path, limits, editorRef, onAttachment
     (alt: string) => {
       const [first] = queue;
       if (!first) return;
-      const markdown = imageMarkdown(alt, first.attachment.link);
-      const view = editorRef.current;
-      const end = view ? replacePlaceholder(view, first.key, markdown) : undefined;
-      if (end === undefined) {
-        onAppend(markdown);
-      } else if (view) {
-        // The cursor goes right after the inserted reference; the dialog returns focus to the editor.
-        view.dispatch({ selection: { anchor: Math.min(end, view.state.doc.length) } });
-      }
+      const placed = target.current?.replacePlaceholder(first.key, alt, first.attachment.link) ?? false;
+      if (!placed) onAppend(imageMarkdown(alt, first.attachment.link));
       setQueue((q) => q.slice(1));
       if (queue.length === 1) queued.current = 0;
     },
-    [queue, editorRef, onAppend],
+    [queue, target, onAppend],
   );
 
   const current = queue[0];

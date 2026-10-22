@@ -40,11 +40,16 @@ export function RouteAnnouncer() {
       return true;
     };
 
-    // Views render asynchronously (data loading); wait for the heading.
+    // Views render asynchronously (data loading); wait for the heading. A view may also replace
+    // its heading once fresh data arrives (e.g. a page refetched after a save): while the view
+    // settles, focus that fell back to <body> returns to the new heading.
+    let settled = false;
     const timer = window.setTimeout(() => {
-      if (settle() || !main) return;
+      settled = settle();
+      if (!main) return;
       observer = new MutationObserver(() => {
-        if (settle()) observer?.disconnect();
+        if (!settled) settled = settle();
+        else if (document.activeElement === document.body || !document.activeElement?.isConnected) settle();
       });
       observer.observe(main, { childList: true, subtree: true });
     }, 50);

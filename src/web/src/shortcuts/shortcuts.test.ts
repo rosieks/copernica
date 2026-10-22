@@ -35,6 +35,8 @@ describe('matchShortcut', () => {
     ['select', '<select></select>'],
     ['contenteditable', '<div contenteditable="true"></div>'],
     ['CodeMirror', '<div class="cm-editor"><div class="cm-content" data-target></div></div>'],
+    // 007 FR-026: keys typed into the visual editor target the paragraph inside it.
+    ['the visual editor', '<div class="ProseMirror" contenteditable="true" role="textbox"><p><strong data-target>x</strong></p></div>'],
     ['dialog', '<div role="dialog"><button data-target>x</button></div>'],
   ])('ignores single-key shortcuts in %s', (_, html) => {
     expect(matchShortcut(keydown('e', element(html)), all, true)).toBeUndefined();

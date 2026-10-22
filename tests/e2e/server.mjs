@@ -2,7 +2,7 @@
 // bare repositories, and local accounts alice/bob (password "secret").
 // Used as Playwright's webServer command; state is written to .e2e-state.json for the specs.
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +26,8 @@ function createRemote(name, files) {
   const clone = join(work, `${name}-seed`);
   git(work, 'init', '--bare', '--initial-branch=main', bare);
   git(work, 'init', '--initial-branch=main', clone);
+  // Fixtures are committed byte for byte (007 tests CRLF files and byte order marks).
+  git(clone, 'config', 'core.autocrlf', 'false');
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(clone, path)), { recursive: true });
     writeFileSync(join(clone, path), content);
@@ -113,6 +115,24 @@ const tree = createRemote('tree', {
   'archive/2019/b.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
 });
 
+// 007 fixture (specs/007-wysiwyg-editor/quickstart.md): the visual editor's Azure DevOps-style
+// corpus pages, copied as bytes so CRLF line endings and byte order marks survive.
+const corpus = join(root, 'src/web/src/visual/markdown/corpus/azure-devops');
+const largeSections = Array.from({ length: 120 }, (_, i) =>
+  `## Section ${i + 1}\n\n` +
+  `This is paragraph ${i + 1} of a large page. It has enough words to wrap over several lines in the editor, ` +
+  `so that typing and scrolling are measured on realistic content.\n\n` +
+  `- first point of section ${i + 1}\n- second point with **bold** text\n- third point with a [link](target-page.md)\n\n` +
+  (i % 10 === 0 ? '| Name | Value |\n|------|-------|\n| a | 1 |\n| b | 2 |\n\n' : ''),
+).join('');
+const visual = createRemote('visual', {
+  ...Object.fromEntries(readdirSync(corpus).map((name) => [name, readFileSync(join(corpus, name))])),
+  'index.md': '# Visual Lab\n\nPages for the visual editor tests.\n',
+  'guides/target-page.md': '# Target page\n\nLinked from other pages.\n',
+  'plain.md': '# Plain page\n\nFirst paragraph of a plain page.\n\nSecond paragraph.\n',
+  'large.md': `# Large page\n\n${largeSections}`,
+});
+
 const hash = spawnSync('dotnet', [...runArgs, '--', 'hash-password'], {
   input: 'secret\n',
   encoding: 'utf8',
@@ -149,9 +169,12 @@ const env = {
   Copernica__Spaces__3__Id: 'tree',
   Copernica__Spaces__3__DisplayName: 'Tree Lab',
   Copernica__Spaces__3__RemoteUrl: tree.bare,
+  Copernica__Spaces__4__Id: 'visual',
+  Copernica__Spaces__4__DisplayName: 'Visual Lab',
+  Copernica__Spaces__4__RemoteUrl: visual.bare,
 };
 
-writeFileSync(join(here, '.e2e-state.json'), JSON.stringify({ work, handbook, service, tree }, null, 2));
+writeFileSync(join(here, '.e2e-state.json'), JSON.stringify({ work, handbook, service, tree, visual }, null, 2));
 
 const server = spawn('dotnet', runArgs, { env, stdio: 'inherit' });
 const stop = () => server.kill();
