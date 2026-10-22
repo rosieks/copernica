@@ -118,6 +118,9 @@ class Serializer {
     let prev: PMNode | null = null;
     let number = list ? (list.attrs.start as number) : 0;
     parent.forEach((child, _offset, index) => {
+      // An empty new paragraph (e.g. after Enter at the end) has no Markdown form; writing it
+      // would only add blank lines.
+      if (!list && child.type.name === 'paragraph' && child.content.size === 0 && this.srcOf(child) === null && parent.childCount > 1) return;
       if (prev) out += this.gap(prev, child, prefix, freshGap);
       if (list) {
         if (index > 0) number = this.nextNumber(prev!, number);

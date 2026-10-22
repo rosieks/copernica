@@ -13,7 +13,7 @@ import {
   toggleListCommand,
   toggleQuoteCommand,
 } from './commands';
-import { isRoundTripSafe, parse, serialize, type SourceSnapshot } from './markdown';
+import { parse, serialize, type SourceSnapshot } from './markdown';
 import type { PendingImage } from './markdown/urls';
 import { DiagramDialog, NEW_DIAGRAM } from './DiagramDialog';
 import { ImageBar } from './ImageBar';
@@ -142,8 +142,15 @@ export default function VisualEditor({ value, onChange, label, spaceId, pagePath
     // `__copernicaVisualGuard = false` is an e2e test hook (quickstart W10); it can only make the
     // editor fall back to Markdown mode.
     const forced = (window as { __copernicaVisualGuard?: boolean }).__copernicaVisualGuard === false;
-    if (forced || !isRoundTripSafe(markdown)) return null;
-    const parsed = parse(markdown);
+    if (forced) return null;
+    // One parse serves both the guard and the editor (large pages, SC-005).
+    let parsed: ReturnType<typeof parse>;
+    try {
+      parsed = parse(markdown);
+      if (serialize(parsed.doc, parsed.snapshot) !== markdown) return null;
+    } catch {
+      return null;
+    }
     snapshot.current = parsed.snapshot;
     emitted.current = markdown;
     return EditorState.create({

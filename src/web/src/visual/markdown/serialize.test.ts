@@ -148,6 +148,13 @@ describe('serialize: preservation rules (contracts/fidelity.md S2–S10)', () =>
     expect(out).toBe('| a | b |\n|---|---|\n|  1 |  2 |\n| 30 | 4 |\n');
   });
 
+  it('writes nothing for empty new paragraphs', () => {
+    const out = edit('a\n', (tr, doc) => {
+      tr.insert(doc.content.size, [schema.nodes.paragraph.create(), schema.nodes.paragraph.create(null, schema.text('b')), schema.nodes.paragraph.create()]);
+    });
+    expect(out).toBe('a\n\nb\n');
+  });
+
   it('escapes only what would change meaning in new text (S7)', () => {
     const out = edit('x\n', (tr, doc) => {
       tr.insert(doc.content.size, schema.nodes.paragraph.create(null, schema.text('1. a *b* snake_case [c] <d> #e')));

@@ -120,8 +120,9 @@ plain text and stay usable with ordinary git tooling.
 
 ## Diagrams
 
-Mermaid diagram blocks (` ```mermaid ` and Azure DevOps `::: mermaid`) are the one place
-where user content is drawn in the browser (constitution v1.3.0):
+Mermaid diagram blocks (` ```mermaid ` and Azure DevOps `::: mermaid`) are drawn in the
+browser (constitution v1.3.0); the visual editor below is the only other place where page
+content is displayed without the server renderer:
 
 - **Server markup:** the server emits the diagram text HTML-escaped inside a sanitized
   `<figure>`, with metadata in `data-diagram*` attributes. Click links in diagrams go through
@@ -145,6 +146,31 @@ where user content is drawn in the browser (constitution v1.3.0):
   opaque-origin frame can load its module scripts. They are public, content-hashed static
   code sent without credentials. Pages and API responses never carry the header.
 
+## Visual editor
+
+The page editor's visual mode shows the page being edited in the browser (constitution
+v1.4.0). Published pages, page versions and the Markdown-mode preview are still rendered and
+sanitized on the server.
+
+- **Fixed document structure:** the editor parses Markdown in the browser into a document of a
+  fixed schema (headings, paragraphs, emphasis, links, lists, quotes, code, tables, images,
+  rules, diagrams). It builds the display from that schema with DOM methods. No markup
+  derived from user content is inserted (`innerHTML` or equivalent).
+- **Raw HTML is text:** HTML blocks and tags, comments, front matter and any other Markdown the
+  editor does not represent appear as labelled placeholders showing their source as text.
+  They are never interpreted and are written back unchanged.
+- **Addresses:** link and image addresses get an `href` or are loaded only when their scheme
+  is one the server sanitizer allows (`http`, `https`, `mailto`, or an address inside the
+  wiki). A test pins the two lists together. Images from other sites are not loaded in the
+  editor; it shows a placeholder frame instead.
+- **Diagrams:** drawn only through the isolated renderer described above.
+- **Pasting:** pasted HTML is parsed in a detached document and kept only where it matches the
+  schema. Styles, scripts, event handlers and office markup are dropped. Images that are
+  only addresses of other sites are not inserted.
+- **No change in footprint:** no new endpoints, ports, files or outbound connections. The
+  Content Security Policy is unchanged. The editor code is loaded only when a page is
+  edited.
+
 ## Container
 
 - **Base image:** `mcr.microsoft.com/dotnet/runtime-deps:10.0-noble-chiseled`. It has no
@@ -163,6 +189,9 @@ All shipped dependencies use permissive licenses (MIT, BSD, Apache-2.0). See
 **Mermaid** 11.17.2 (MIT) draws diagrams, only inside the isolated renderer. Its dependency
 **DOMPurify** is dual-licensed MPL-2.0 or Apache-2.0 and is used under **Apache-2.0**.
 Mermaid 12 is not used: it depends on elkjs (EPL-2.0).
+
+**ProseMirror** (MIT) is the visual editor, with **@lezer/markdown** (MIT) as its Markdown
+parser.
 
 **libgit2** (bundled with LibGit2Sharp) is licensed under **GPLv2 with a linking exception**.
 It is used unmodified as a dynamically loaded native library, which the exception permits.

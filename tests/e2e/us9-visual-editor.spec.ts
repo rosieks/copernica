@@ -1,6 +1,14 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test, expect, type Page } from '@playwright/test';
 import { remoteLog, signIn, state } from './helpers';
+import { collectCspViolations } from './ui-helpers';
+
+const here = dirname(fileURLToPath(import.meta.url));
+// 1x1 PNG.
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 // specs/007-wysiwyg-editor/quickstart.md, scenarios W1–W18 (automated parts). The `visual`
 // space ("Visual Lab") holds the corpus fixtures, committed byte for byte by server.mjs.
@@ -224,5 +232,199 @@ test.describe.serial('007 — visual page editor', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('No changes to save').first()).toBeVisible();
     expect(commits()).toBe(before);
+  });
+
+  test('W11: a pasted screenshot is described, shown in place and committed with the page', async ({ page }) => {
+    const original = rawFile('bom-no-final-newline.md');
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'bom-no-final-newline.md');
+    await caretAfter(page, 'at the start.');
+    await editor(page).evaluate((target, base64) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))], 'image.png', { type: 'image/png' }));
+      target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+    }, PNG);
+    const dialog = page.getByRole('dialog', { name: /Describe the image/ });
+    await dialog.getByLabel('Description', { exact: true }).fill('Login screen');
+    await dialog.getByRole('button', { name: 'Insert' }).click();
+    await expect(editor(page).getByRole('img', { name: 'Login screen' })).toBeVisible();
+    await save(page, 'Add a screenshot');
+
+    const saved = rawFile('bom-no-final-newline.md');
+    const link = /!\[Login screen\]\((\.attachments\/image-[^)]+\.png)\)/.exec(saved);
+    expect(link).not.toBeNull();
+    expect(saved).toBe(original.replace('at the start.', `at the start.${link![0]}`));
+    const files = spawnSync('git', ['show', '--name-only', '--format=', 'main'], { cwd: state().visual.bare, encoding: 'utf8' }).stdout.trim().split('\n');
+    expect(files.sort()).toEqual([link![1], 'bom-no-final-newline.md'].sort());
+  });
+
+  test('W12: a diagram inserted from the "/" menu is drawn; unedited diagrams stay as written', async ({ page }) => {
+    const original = rawFile('mermaid.md');
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'mermaid.md');
+    await expect(editor(page).getByRole('figure', { name: 'Diagram (graph)' }).getByRole('img')).toBeVisible();
+    await caretAfter(page, 'Text after the diagrams.');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/diagram');
+    await page.keyboard.press('Enter');
+
+    const dialog = page.getByRole('dialog', { name: 'Edit diagram' });
+    const source = dialog.getByRole('textbox', { name: 'Diagram source' });
+    await source.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await page.keyboard.insertText('flowchart LR');
+    await page.keyboard.press('Enter');
+    await page.keyboard.insertText('X --> Y');
+    await expect(dialog.getByRole('img', { name: 'Diagram (flowchart)' })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Apply' }).click();
+    await expect(editor(page).getByRole('figure', { name: 'Diagram (flowchart)' }).getByRole('img')).toBeVisible();
+    await save(page, 'Add a diagram');
+    expect(rawFile('mermaid.md')).toBe(`${original}\n\`\`\`mermaid\nflowchart LR\nX --> Y\n\`\`\`\n`);
+  });
+
+  test('W13: Ctrl+K links to a page picked by its title; the link opens that page', async ({ page }) => {
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'index.md');
+    await caretAfter(page, 'Pages for the visual editor tests.');
+    await page.keyboard.type(' See ');
+    await page.keyboard.press('ControlOrMeta+k');
+    const dialog = page.getByRole('dialog', { name: 'Insert link' });
+    await dialog.getByRole('combobox', { name: 'Find a page' }).fill('target');
+    await expect(dialog.getByRole('option', { name: /Target page/ })).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    await expect(editor(page).getByRole('link', { name: 'Target page' })).toBeVisible();
+    await save(page, 'Link the target page');
+
+    expect(rawFile('index.md')).toContain('Pages for the visual editor tests. See [Target page](guides/target-page.md)\n');
+    await page.getByRole('article').getByRole('link', { name: 'Target page' }).click();
+    await expect(page).toHaveURL(/\/s\/visual\/guides\/target-page\.md$/);
+  });
+
+  test('W14: content pasted from Word keeps its structure and nothing else', async ({ page }) => {
+    const html = readFileSync(join(here, 'fixtures/word-paste.html'), 'utf8');
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'plain.md');
+    await caretAfter(page, 'Second paragraph. C');
+    await page.keyboard.press('Enter');
+    await editor(page).evaluate((target, content) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/html', content);
+      transfer.setData('text/plain', 'Quarterly review');
+      target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+    }, html);
+    await expect(page.getByRole('status').filter({ hasText: '1 image from other sites was not inserted' })).toHaveCount(1);
+    await expect(editor(page).getByRole('heading', { name: 'Quarterly review' })).toBeVisible();
+    await save(page, 'Paste the review');
+
+    const saved = rawFile('plain.md');
+    expect(saved).toContain('## Quarterly review');
+    expect(saved).toContain('The review covers **revenue**, *costs* and the [annual plan](https://intranet.example.com/plan).');
+    expect(saved).toContain('- Collect the numbers\n- Prepare the slides');
+    expect(saved).toContain('| Team | Owner |');
+    expect(saved).toContain('End of section.');
+    expect(saved).not.toMatch(/mso|style=|<|onclick|__pwned|logo\.png/);
+    expect(await page.evaluate(() => (window as { __pwned?: boolean }).__pwned)).toBeUndefined();
+  });
+
+  test('W15: a whole edit can be done with the keyboard only', async ({ page }) => {
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await page.goto('/s/visual/-/edit/containers-grid-deflist.md');
+    await expect(editor(page)).toBeVisible();
+    const focused = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.id ?? '');
+    for (let i = 0; i < 40 && (await focused()) !== 'Page content'; i++) await page.keyboard.press('Tab');
+    expect(await focused()).toBe('Page content');
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Keyboard **only** ');
+    await page.keyboard.press('ControlOrMeta+k');
+    await page.keyboard.type('target');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Insert link' })).toHaveCount(0);
+    await expect(editor(page)).toBeFocused();
+    for (let i = 0; i < 40 && (await focused()) !== 'change-message'; i++) await page.keyboard.press('Tab');
+    expect(await focused()).toBe('change-message');
+    await page.keyboard.type('Keyboard edit');
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect(page).not.toHaveURL(/\/-\/edit\//);
+    expect(rawFile('containers-grid-deflist.md')).toContain('The end.\n\nKeyboard **only** [Target page](guides/target-page.md)\n');
+  });
+
+  test('W16: single-key wiki shortcuts typed in the editor are just text', async ({ page }) => {
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'tables.md');
+    await caretAfter(page, 'Environments');
+    await page.keyboard.type(' e c ?');
+    await expect(editor(page).getByRole('heading', { name: 'Environments e c ?' })).toBeVisible();
+    await expect(page).toHaveURL(/\/-\/edit\/tables\.md$/);
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toHaveCount(0);
+  });
+
+  test('W17: a 100 KB page is ready to edit within a second and typing keeps up', async ({ page }) => {
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await page.goto('/s/visual/large.md');
+    // The first render of a fresh test server's space can take a while; not part of the measurement.
+    await expect(page.getByRole('article')).toContainText('Section 120', { timeout: 20_000 });
+    // Warm the editor chunk once, as a returning user would have it cached.
+    await openEditor(page, 'index.md');
+    await page.goto('/s/visual/large.md');
+    await expect(page.getByRole('article')).toContainText('Section 120');
+
+    // Measured in the page, so the result does not depend on how often the test polls.
+    await page.getByRole('article').click();
+    await page.evaluate(() => {
+      const w = window as unknown as { __start: number; __ready?: number };
+      w.__start = performance.now();
+      const observer = new MutationObserver(() => {
+        const content = document.querySelector('[role="textbox"][aria-label="Page content"]');
+        if (content?.textContent?.includes('Section 120')) {
+          w.__ready = performance.now();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+    await page.keyboard.press('e');
+    await page.waitForFunction(() => (window as unknown as { __ready?: number }).__ready !== undefined);
+    const ready = await page.evaluate(() => {
+      const w = window as unknown as { __start: number; __ready: number };
+      return w.__ready - w.__start;
+    });
+    expect(ready, 'editor ready (ms)').toBeLessThan(1_000);
+
+    await caretAfter(page, 'paragraph 60 of a large page');
+    const typed = await editor(page).evaluate(async (root) => {
+      const times: number[] = [];
+      for (let i = 0; i < 50; i++) {
+        const t0 = performance.now();
+        document.execCommand('insertText', false, 'x');
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        times.push(performance.now() - t0);
+      }
+      times.sort((a, b) => a - b);
+      return { median: times[25]!, text: root.textContent ?? '' };
+    });
+    expect(typed.text).toContain('paragraph 60 of a large page' + 'x'.repeat(50));
+    expect(typed.median, 'median time per character (ms)').toBeLessThan(50);
+  });
+
+  test('W18: hostile content is shown as text and runs nothing', async ({ page }) => {
+    const violations = await collectCspViolations(page);
+    const external: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (!['127.0.0.1', 'localhost'].includes(url.hostname) && url.protocol !== 'data:') external.push(request.url());
+    });
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'hostile.md');
+    await expect(editor(page).getByRole('group', { name: /^HTML block/ }).first()).toBeVisible();
+    await expect(editor(page).getByText('javascript link')).toBeVisible();
+    expect(await editor(page).locator('a[href^="javascript:" i], a[href^="vbscript:" i], a[href^="data:" i]').count()).toBe(0);
+    expect(await editor(page).locator('script, style, iframe, [onerror], [onclick]').count()).toBe(0);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => (window as { __pwned?: boolean }).__pwned)).toBeUndefined();
+    expect(await violations()).toEqual([]);
+    expect(external).toEqual([]);
   });
 });

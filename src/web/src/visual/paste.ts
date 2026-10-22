@@ -10,9 +10,14 @@ import { isAllowedUrl, isExternal, normalizeDestination } from './markdown/urls'
  * that are only addresses of other sites are dropped and reported.
  */
 
-/** Removes what Word and other office tools add around the content. */
+/**
+ * Removes what Word and other office tools add around the content, and event handler
+ * attributes. The schema would drop handlers anyway, and the detached document never runs
+ * them; removing them first also keeps the browser from even compiling them (a CSP report).
+ */
 export function cleanPastedHtml(html: string): string {
   return html
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<(style|script|meta|link|title|xml|template)\b[\s\S]*?<\/\1>/gi, '')

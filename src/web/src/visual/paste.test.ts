@@ -38,6 +38,10 @@ describe('pasting formatted content (FR-024)', () => {
     expect(dropped).toBe(2);
   });
 
+  it('removes event handler attributes before the HTML is parsed', () => {
+    expect(cleanPastedHtml('<p onclick="x()" class="a" ONMOUSEOVER=\'y\' onload=z>t</p>')).toBe('<p class="a">t</p>');
+  });
+
   it('removes conditional comments and office tags from the HTML', () => {
     const html = cleanPastedHtml('<!--[if gte mso 9]>x<![endif]--><p>a<o:p></o:p></p><w:Sdt>b</w:Sdt><style>.x{}</style>');
     expect(html).toBe('<p>a</p>b');

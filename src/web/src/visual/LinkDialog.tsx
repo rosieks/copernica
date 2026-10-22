@@ -144,7 +144,8 @@ export function LinkDialog({ open, initialTab, current, spaceId, pagePath, onIns
           <>
             <Field
               label="Find a page"
-              type="search"
+              type="text"
+              autoComplete="off"
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
