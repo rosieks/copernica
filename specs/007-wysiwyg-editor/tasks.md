@@ -430,7 +430,7 @@ without any syntax.
   - no new outbound connections, ports or files.
 - [X] T060 [P] Update `README.md` "User interface": the visual and Markdown modes, the "/" menu, placeholders and why they exist, "Review changes", and the guarantee that unchanged parts of a page are never rewritten.
 - [X] T061 Verify the lazy chunk: run `npm --prefix src/web run build` and check that ProseMirror modules appear only in the visual editor chunk (not in `main`). Record the chunk's gzip size in the PR description. It should be about 120 KB; investigate if it exceeds 200 KB.
-- [ ] T062 Run the full quickstart.md: `npm --prefix src/web run lint`, `npm --prefix src/web test` (fidelity summary with 0 failures), `dotnet test`, and Playwright `us9-visual-editor.spec.ts`, `a11y.spec.ts` and `csp.spec.ts` on chromium, firefox and webkit. Fix failures before marking the feature done. The PR description must call out the new npm dependencies, the constitution v1.4.0 amendment and the `SECURITY.md` change (constitution Quality Gates).
+- [X] T062 Run the full quickstart.md: `npm --prefix src/web run lint`, `npm --prefix src/web test` (fidelity summary with 0 failures), `dotnet test`, and Playwright `us9-visual-editor.spec.ts`, `a11y.spec.ts` and `csp.spec.ts` on chromium, firefox and webkit. Fix failures before marking the feature done. The PR description must call out the new npm dependencies, the constitution v1.4.0 amendment and the `SECURITY.md` change (constitution Quality Gates).
 
 ---
 
