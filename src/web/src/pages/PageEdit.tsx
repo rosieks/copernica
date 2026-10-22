@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { useDiagrams } from '../diagrams/useDiagrams';
 import type { EditorView } from '@codemirror/view';
 import { ImageIcon } from '@radix-ui/react-icons';
@@ -8,7 +8,10 @@ import { api, ApiError, isUnauthenticated, type Schemas } from '../api/client';
 import { useMe } from '../App';
 import { MarkdownEditor } from '../components/MarkdownEditor';
 import { clearDraft, loadDraft, saveDraft, type Draft, type DraftAttachment } from '../drafts';
+import { loadEditorMode, storeEditorMode, type EditorMode } from '../editor/editorMode';
+import { codeMirrorTarget, type ImageTarget } from '../editor/imageTarget';
 import { DEFAULT_LIMITS, formatMegabytes } from '../editor/uploads';
+import type { VisualEditorHandle } from '../visual/VisualEditor';
 import { useImageUploads } from '../editor/useImageUploads';
 import { joinNames, shortCommit } from '../format';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
@@ -16,9 +19,10 @@ import { WIDE, useMediaQuery } from '../layout/useMediaQuery';
 import { pageApi, spaceRoute } from '../routes';
 import { copyText } from './PageActions';
 import { useShortcut } from '../shortcuts';
-import { AlertDialog, Button, Callout, Dialog, Field, Tabs, useToast } from '../ui';
+import { AlertDialog, Button, Callout, Dialog, Field, Tabs, ToggleGroup, useToast } from '../ui';
 import { ConflictView, type EditConflict } from './ConflictView';
 import { ImageDescriptionDialog } from './ImageDescriptionDialog';
+import { ReviewChangesDialog } from './ReviewChangesDialog';
 import { StateIndicators } from './StateIndicators';
 import './PageEdit.css';
 
@@ -30,6 +34,11 @@ interface Props {
 }
 
 type EditorTab = 'write' | 'preview' | 'split';
+
+/** The visual editor (007) loads on demand, so ProseMirror stays out of the reading path. */
+const VisualEditor = lazy(() => import('../visual/VisualEditor'));
+
+const GUARD_MESSAGE = "This page uses Markdown the visual editor can't edit safely, so it opened in Markdown mode.";
 
 /** Browser-only preference (data-model.md → Interface preference). */
 const TAB_KEY = 'copernica.editorTab';
@@ -105,15 +114,39 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   const [saving, setSaving] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [signInAgain, setSignInAgain] = useState<'local' | 'challenge'>();
+  const [reviewing, setReviewing] = useState(false);
+  /** Polite status for the live region (007: "No changes to save", mode switches). */
+  const [status, setStatus] = useState('');
   const [tab, setTab] = useState<EditorTab>(() => loadTab(wide));
+  const [mode, setMode] = useState<EditorMode>(loadEditorMode);
+  /** The load-time guard rejected this page; it is edited in Markdown mode (FR-019). */
+  const [guardFailed, setGuardFailed] = useState(false);
   const messageInput = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorView | null>(null);
+  const visualRef = useRef<VisualEditorHandle | null>(null);
+  /** Cursor offset to restore in the editor that is about to appear (mode switch). */
+  const pendingCursor = useRef<number | null>(null);
   const filePicker = useRef<HTMLInputElement>(null);
+  /** The editor in use, for callbacks created once (focus return, image target). */
+  const modeRef = useRef<EditorMode>('markdown');
   // Focus target after describing an image: the editor's content element.
   const editorContent = useMemo(
     () => ({
       get current() {
-        return editorRef.current?.contentDOM ?? null;
+        return modeRef.current === 'visual' ? (visualRef.current?.view.dom ?? null) : (editorRef.current?.contentDOM ?? null);
+      },
+    }),
+    [],
+  );
+  // Images go into whichever editor is shown (003 in both modes, 007 FR-020).
+  const imageTarget = useMemo(
+    () => ({
+      get current(): ImageTarget | null {
+        if (modeRef.current === 'visual') return visualRef.current?.imageTarget ?? null;
+        return editorRef.current ? codeMirrorTarget(editorRef.current) : null;
+      },
+      set current(_value: ImageTarget | null) {
+        // Read-only view of the current editor.
       },
     }),
     [],
@@ -140,20 +173,58 @@ export function PageEdit({ space, path, isNew = false }: Props) {
     if (draft && (restored || draft.markdown !== pristine)) saveDraft(spaceId, path, draft);
   }, [draft, pristine, restored, spaceId, path]);
 
+  // A status such as "No changes to save" no longer applies once the text changes.
+  useEffect(() => setStatus((s) => (s === 'No changes to save' ? '' : s)), [draft?.markdown]);
+
+  const shownMode: EditorMode = guardFailed ? 'markdown' : mode;
+  modeRef.current = shownMode;
+
+  // After a mode switch, put the cursor where it was (contracts/fidelity.md M2).
+  useEffect(() => {
+    const offset = pendingCursor.current;
+    if (offset === null) return;
+    let frames = 0;
+    const apply = () => {
+      if (shownMode === 'visual') {
+        if (!visualRef.current && frames++ < 60) return void requestAnimationFrame(apply);
+        visualRef.current?.setCursorOffset(offset);
+        visualRef.current?.focus();
+      } else {
+        const cm = editorRef.current;
+        if (!cm && frames++ < 60) return void requestAnimationFrame(apply);
+        if (cm) {
+          const anchor = Math.min(offset, cm.state.doc.length);
+          cm.dispatch({ selection: { anchor }, scrollIntoView: true });
+          cm.focus();
+        }
+      }
+      pendingCursor.current = null;
+    };
+    requestAnimationFrame(apply);
+  }, [shownMode]);
+
   const attachmentIds = useMemo(() => (draft?.attachments ?? []).map((a) => a.id), [draft?.attachments]);
-  const preview = usePreview(spaceId, path, draft?.markdown ?? '', shownTab !== 'write', attachmentIds);
+  const preview = usePreview(spaceId, path, draft?.markdown ?? '', shownMode === 'markdown' && shownTab !== 'write', attachmentIds);
   const setMarkdown = useCallback((markdown: string) => setDraft((d) => (d ? { ...d, markdown } : d)), []);
   const images = useImageUploads({
     spaceId,
     path,
     limits,
-    editorRef,
+    target: imageTarget,
     onAttachment: useCallback(
       (attachment: DraftAttachment) => setDraft((d) => (d ? { ...d, attachments: [...(d.attachments ?? []), attachment] } : d)),
       [],
     ),
     onAppend: useCallback((markdown: string) => setDraft((d) => (d ? { ...d, markdown: `${d.markdown.trimEnd()}\n\n${markdown}\n` } : d)), []),
   });
+
+  // Toolbar, "/" menu and Ctrl/⌘+K actions of the visual editor that open page-level UI.
+  const visualActions = useMemo(
+    () => ({
+      onImage: () => filePicker.current?.click(),
+    }),
+    [],
+  );
 
   useShortcut({
     key: 's',
@@ -178,7 +249,21 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   if (!draft) return null;
 
   const current = draft;
+  /** The text as it is now; the visual editor writes its changes back on a short delay. */
+  const latestMarkdown = () => (shownMode === 'visual' ? (visualRef.current?.flush() ?? current.markdown) : current.markdown);
   const changed = current.markdown !== pristine;
+
+  function switchMode(next: EditorMode) {
+    if (next === shownMode) return;
+    let offset = 0;
+    if (shownMode === 'visual') offset = visualRef.current?.getCursorOffset() ?? 0;
+    else offset = editorRef.current?.state.selection.main.head ?? 0;
+    pendingCursor.current = offset;
+    storeEditorMode(next);
+    setGuardFailed(false);
+    setMode(next);
+    setStatus(next === 'visual' ? 'Visual mode' : 'Markdown mode');
+  }
   const leave = () => {
     clearDraft(spaceId, path);
     navigate(isNew ? `/s/${spaceId}/` : spaceRoute(spaceId, path));
@@ -187,7 +272,14 @@ export function PageEdit({ space, path, isNew = false }: Props) {
   async function save(event?: FormEvent, override?: Partial<Draft>) {
     event?.preventDefault();
     if (saving) return;
-    const toSave = { ...current, ...override };
+    const toSave = { ...current, markdown: latestMarkdown(), ...override };
+    // 007 FR-012: a file identical to the one the edit started from is not saved at all.
+    if (!override && !isNew && toSave.markdown === pristine) {
+      setMessageError(undefined);
+      setStatus('');
+      requestAnimationFrame(() => setStatus('No changes to save'));
+      return;
+    }
     if (!toSave.message.trim()) {
       setMessageError('Describe your change.');
       messageInput.current?.focus();
@@ -301,6 +393,66 @@ export function PageEdit({ space, path, isNew = false }: Props) {
           }
         />
       )}
+      <div className="page-edit__modebar">
+        <ToggleGroup<EditorMode>
+          label="Editor mode"
+          value={shownMode}
+          onValueChange={switchMode}
+          items={[
+            { value: 'visual', label: 'Visual' },
+            { value: 'markdown', label: 'Markdown' },
+          ]}
+        />
+        <Button
+          size="sm"
+          onClick={() => {
+            latestMarkdown();
+            setReviewing(true);
+          }}
+        >
+          Review changes
+        </Button>
+      </div>
+      {guardFailed && <Callout tone="info" title={GUARD_MESSAGE} />}
+      <input
+        ref={filePicker}
+        type="file"
+        hidden
+        multiple
+        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = '';
+          if (files.length) images.onFiles(files);
+        }}
+      />
+      {shownMode === 'visual' ? (
+        <Suspense
+          fallback={
+            <p className="status" role="status">
+              Loading editor…
+            </p>
+          }
+        >
+          <VisualEditor
+            value={current.markdown}
+            onChange={setMarkdown}
+            label="Page content"
+            spaceId={spaceId}
+            pagePath={path}
+            pending={current.attachments ?? []}
+            editorRef={visualRef}
+            onAnnounce={(text) => {
+              setStatus('');
+              requestAnimationFrame(() => setStatus(text));
+            }}
+            onGuardFailure={() => setGuardFailed(true)}
+            onFiles={images.onFiles}
+            actions={visualActions}
+          />
+        </Suspense>
+      ) : (
+        <>
       {shownTab !== 'preview' && (
         <div className="page-edit__toolbar">
           <Button
@@ -311,18 +463,6 @@ export function PageEdit({ space, path, isNew = false }: Props) {
             Insert image
           </Button>
           <span className="muted">or paste / drop images · up to {formatMegabytes(limits.maxBytes)}</span>
-          <input
-            ref={filePicker}
-            type="file"
-            hidden
-            multiple
-            accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-            onChange={(e) => {
-              const files = [...(e.target.files ?? [])];
-              e.target.value = '';
-              if (files.length) images.onFiles(files);
-            }}
-          />
         </div>
       )}
       <Tabs.Root
@@ -364,6 +504,8 @@ export function PageEdit({ space, path, isNew = false }: Props) {
           </Tabs.Panel>
         )}
       </Tabs.Root>
+        </>
+      )}
       {images.uploads.map((u) => (
         <div key={u.key} className="page-edit__upload">
           <span>
@@ -382,8 +524,13 @@ export function PageEdit({ space, path, isNew = false }: Props) {
         </Callout>
       ))}
       <div className="visually-hidden" role="status" aria-live="polite">
-        {images.announcement}
+        {[images.announcement, status].filter(Boolean).join(' ')}
       </div>
+      {status === 'No changes to save' && (
+        <p className="muted page-edit__status" aria-hidden="true">
+          No changes to save
+        </p>
+      )}
       {error && (
         <Callout tone="danger" title="Your change was not saved." onDismiss={() => setError(undefined)}>
           {error}
@@ -440,6 +587,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
           <Button onClick={() => (changed ? setDiscarding(true) : leave())}>Cancel</Button>
         </div>
       </div>
+      <ReviewChangesDialog open={reviewing} onOpenChange={setReviewing} from={isNew ? '' : (pristine ?? '')} to={current.markdown} />
       <AlertDialog
         open={discarding}
         onOpenChange={setDiscarding}

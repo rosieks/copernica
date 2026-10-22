@@ -118,6 +118,19 @@ All settings are listed in
 
   With a mouse you can also drag a page or folder onto another folder (or onto the space
   name) to move it there.
+- **Editing:** the editor has two modes, switched with **Visual | Markdown** above it. The
+  choice is remembered in your browser.
+  - **Visual** (the default) shows the page as it will look. Format with the toolbar or the
+    usual shortcuts (`Ctrl`/`⌘` + `B`, `I`, `K` …), type `/` on an empty line to insert a
+    heading, list, table, diagram, image or link to a page, or type Markdown such as `## `
+    or `- ` at the start of a line.
+  - **Markdown** is the text editor with **Write**, **Preview** and **Split** views.
+  - Parts of a page the visual editor cannot edit, such as HTML, `[[_TOC_]]` or front matter,
+    are shown as labelled boxes. Edit them in Markdown mode.
+  - **Saving never rewrites what you did not change.** Unchanged parts of the file are
+    written back exactly as they were, so git history shows only your edit. **Review
+    changes** shows the difference before saving, and saving without changes does nothing.
+    A page the visual editor cannot keep exactly opens in Markdown mode.
 - **Images:** paste a screenshot or drop image files into the editor, or use **Insert image**.
   The wiki asks for a short description and saves the images together with the page in one
   commit. By default they go to `.attachments/` at the root of the space (as in Azure
@@ -136,6 +149,8 @@ All settings are listed in
 | `c` | Comment on the selected text |
 | `?` | Show keyboard shortcuts |
 | `Ctrl`/`⌘` + `S` | Save in the editor |
+| `/` | Insert a block (visual editor, on an empty line) |
+| `Ctrl`/`⌘` + `K` | Insert or edit a link (visual editor) |
 | `Ctrl`/`⌘` + `Enter` | Post a comment or reply |
 | `Esc` | Close a dialog, menu or panel |
 | `F8` | Go to notifications |

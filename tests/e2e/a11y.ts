@@ -18,6 +18,8 @@ export interface ScanOptions {
   theme: 'light' | 'dark';
   width: number;
   user?: 'alice' | 'bob';
+  /** The page editor's mode (007); Markdown unless given. */
+  editorMode?: 'visual' | 'markdown';
   /** Runs after navigation, e.g. to open a dialog before scanning. */
   prepare?: (page: Page) => Promise<void>;
 }
@@ -41,7 +43,7 @@ export async function scanWcag(browser: Browser, url: string, options: ScanOptio
   });
   try {
     const page = await context.newPage();
-    await signIn(page, options.user ?? 'alice');
+    await signIn(page, options.user ?? 'alice', { editorMode: options.editorMode ?? 'markdown' });
     await page.goto(url);
     await page.waitForLoadState('networkidle');
     await options.prepare?.(page);

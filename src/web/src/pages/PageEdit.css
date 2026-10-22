@@ -59,6 +59,19 @@
   max-width: none;
 }
 
+.page-edit__modebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.page-edit__status {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
 .page-edit__toolbar {
   display: flex;
   flex-wrap: wrap;

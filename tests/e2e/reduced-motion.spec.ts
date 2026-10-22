@@ -27,6 +27,10 @@ test.describe('002 — reduced motion (V27)', () => {
     await page.keyboard.press('Escape');
 
     await page.goto('/s/handbook/-/edit/guides/setup.md');
+    // An unchanged page is not saved at all (007 FR-012), so make a change first.
+    await page.getByRole('textbox', { name: 'Page content (Markdown)' }).click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.insertText('\nReduced motion.\n');
     await page.getByLabel('Change description').fill('Reduced motion save');
     await page.getByRole('button', { name: 'Save' }).click();
     const toast = page.getByRole('region', { name: /Notifications/ }).locator('li').first();

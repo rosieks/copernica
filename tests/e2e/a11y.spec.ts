@@ -32,7 +32,83 @@ interface Screen {
   prepare?: (page: Page) => Promise<void>;
   /** Only meaningful at some widths. */
   widths?: number[];
+  editorMode?: 'visual' | 'markdown';
 }
+
+const visualEditor = (p: Page) => p.getByRole('textbox', { name: 'Page content', exact: true });
+
+/** Puts the caret at the end of the visual editor's text and waits for ProseMirror to see it. */
+async function caretAtEnd(p: Page) {
+  await visualEditor(p).click();
+  await p.keyboard.press('ControlOrMeta+End');
+}
+
+/** 007 contracts/ui.md §11: the visual editor and everything it opens. */
+const VISUAL: Screen[] = [
+  { name: 'Visual editor', url: '/s/visual/-/edit/toc-html-frontmatter.md', editorMode: 'visual' },
+  {
+    name: 'Visual editor "/" menu',
+    url: '/s/visual/-/edit/index.md',
+    editorMode: 'visual',
+    prepare: async (p) => {
+      await caretAtEnd(p);
+      await p.keyboard.press('Enter');
+      await p.keyboard.type('/');
+      await p.getByRole('listbox', { name: 'Insert block' }).waitFor();
+    },
+  },
+  {
+    name: 'Visual editor link dialog',
+    url: '/s/visual/-/edit/index.md',
+    editorMode: 'visual',
+    prepare: async (p) => {
+      await caretAtEnd(p);
+      await p.keyboard.press('ControlOrMeta+k');
+      await p.getByRole('dialog', { name: 'Insert link' }).getByRole('option').first().waitFor();
+    },
+  },
+  {
+    name: 'Visual editor diagram dialog',
+    url: '/s/visual/-/edit/index.md',
+    editorMode: 'visual',
+    widths: [viewports.wide.width, viewports.medium.width],
+    prepare: async (p) => {
+      await p.getByRole('button', { name: 'Insert diagram' }).click();
+      await p.getByRole('dialog', { name: 'Edit diagram' }).getByRole('img').waitFor();
+    },
+  },
+  {
+    name: 'Visual editor table menu',
+    url: '/s/visual/-/edit/tables.md',
+    editorMode: 'visual',
+    widths: [viewports.wide.width, viewports.medium.width],
+    prepare: async (p) => {
+      await visualEditor(p).getByRole('cell', { name: 'Dev' }).first().click();
+      await p.getByRole('button', { name: 'Table' }).click();
+      await p.getByRole('menu', { name: 'Table' }).waitFor();
+    },
+  },
+  {
+    name: 'Visual editor more formatting',
+    url: '/s/visual/-/edit/index.md',
+    editorMode: 'visual',
+    widths: [viewports.narrow.width],
+    prepare: async (p) => {
+      await p.getByRole('button', { name: 'More formatting' }).click();
+      await p.getByRole('menu', { name: 'More formatting' }).waitFor();
+    },
+  },
+  {
+    name: 'Visual editor link bar',
+    url: '/s/visual/-/edit/images-links.md',
+    editorMode: 'visual',
+    widths: [viewports.wide.width],
+    prepare: async (p) => {
+      await visualEditor(p).getByRole('link', { name: 'setup' }).click();
+      await p.getByRole('group', { name: 'Link' }).waitFor();
+    },
+  },
+];
 
 const SCREENS: Screen[] = [
   { name: 'S2 space list', url: '/' },
@@ -161,6 +237,14 @@ test.describe('002 — WCAG 2.1 AA (V25)', () => {
       for (const screen of SCREENS.filter((s) => !s.widths || s.widths.includes(width))) {
         test(`${screen.name} — ${theme}, ${width}px`, async ({ browser }) => {
           await scanWcag(browser, screen.url, { theme, width, prepare: screen.prepare });
+        });
+      }
+    }
+    // 007 SC-006: the visual editor at three widths.
+    for (const width of [viewports.wide.width, viewports.medium.width, viewports.narrow.width]) {
+      for (const screen of VISUAL.filter((s) => !s.widths || s.widths.includes(width))) {
+        test(`${screen.name} — ${theme}, ${width}px`, async ({ browser }) => {
+          await scanWcag(browser, screen.url, { theme, width, prepare: screen.prepare, editorMode: screen.editorMode });
         });
       }
     }

@@ -3,3 +3,5 @@
 *.jpg binary
 *.gif binary
 *.ico binary
+# Visual editor fidelity fixtures (007): line endings and BOMs are what is being tested.
+src/web/src/visual/markdown/corpus/** -text

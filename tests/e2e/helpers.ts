@@ -11,7 +11,7 @@ interface Remote {
   clone: string;
 }
 
-export function state(): { work: string; handbook: Remote; service: Remote; tree: Remote } {
+export function state(): { work: string; handbook: Remote; service: Remote; tree: Remote; visual: Remote } {
   return JSON.parse(readFileSync(join(here, '.e2e-state.json'), 'utf8'));
 }
 
@@ -47,7 +47,16 @@ export function remoteFile(remote: Remote, path: string): string {
   return git(remote.bare, 'show', `main:${path}`);
 }
 
-export async function signIn(page: Page, user: 'alice' | 'bob' = 'alice'): Promise<void> {
+/**
+ * Signs in. The page editor opens in Markdown mode, which the specs before 007 were written
+ * for; visual editor specs pass `editorMode: 'visual'`, or `null` to keep whatever the browser
+ * has stored (the mode is then not reset on every navigation).
+ */
+export async function signIn(page: Page, user: 'alice' | 'bob' = 'alice', options: { editorMode?: 'visual' | 'markdown' | null } = {}): Promise<void> {
+  const mode = options.editorMode === undefined ? 'markdown' : options.editorMode;
+  if (mode !== null) {
+    await page.addInitScript((value) => localStorage.setItem('copernica.editorMode', value), mode);
+  }
   await page.goto('/signin');
   await page.getByLabel('User name').fill(user);
   await page.getByLabel('Password').fill('secret');
