@@ -166,7 +166,14 @@ export function Toolbar({ view, state, style, actions, onAnnounce }: Props) {
   ];
 
   return (
-    <div className="visual-toolbar">
+    // Pressing a toolbar button must not take the focus and selection away from the text it
+    // formats (WebKit clears the selection otherwise). Keyboard use is unaffected.
+    <div
+      className="visual-toolbar"
+      onMouseDown={(event) => {
+        if ((event.target as HTMLElement).closest('button')) event.preventDefault();
+      }}
+    >
       <UiToolbar.Root label="Formatting">
         <select
           className="visual-toolbar__select"
