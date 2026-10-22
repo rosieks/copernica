@@ -186,7 +186,8 @@ build instead of `src/Copernica/bin`.
 **Workflow:** work follows the Spec Kit flow
 (`/speckit-specify → /speckit-clarify → /speckit-plan → /speckit-tasks → /speckit-implement`).
 All project artifacts are written in English. Every plan must pass the Constitution Check in
-[`.specify/memory/constitution.md`](.specify/memory/constitution.md).
+[`.specify/memory/constitution.md`](.specify/memory/constitution.md). Planned features are
+listed in [docs/roadmap.md](docs/roadmap.md).
 
 ## License
 
