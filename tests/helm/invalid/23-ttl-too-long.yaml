@@ -1,0 +1,5 @@
+# expect: exceeds the maximum of 00:05:00
+wiki:
+  permissionCacheTtl: "00:10:00"
+  auth:
+    mode: local

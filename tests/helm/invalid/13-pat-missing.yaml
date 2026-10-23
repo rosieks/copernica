@@ -1,0 +1,7 @@
+# expect: pat
+wiki:
+  auth:
+    mode: local
+  azureDevOps:
+    syncCredential:
+      type: pat

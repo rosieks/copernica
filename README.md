@@ -69,19 +69,35 @@ docker run -p 127.0.0.1:8080:8080 --read-only --tmpfs /tmp -v copernica-data:/da
 
 ## Kubernetes
 
+The Helm chart in [deploy/helm/copernica](deploy/helm/copernica/README.md) deploys one
+replica with a persistent volume, a non-root read-only container, and no exposure outside
+the cluster unless you turn on the ingress. Requirements: Kubernetes 1.27+, Helm 3.12+.
+
 ```bash
-kubectl apply -k deploy/kubernetes
+kubectl create namespace wiki
+kubectl label namespace wiki pod-security.kubernetes.io/enforce=restricted
+# local accounts with a generated "admin" password (NOTES print how to read it)
+helm install wiki deploy/helm/copernica -n wiki --set wiki.auth.mode=local \
+  --set image.repository=<your registry>/copernica --set image.tag=<tag>
 ```
 
-The manifests define:
+Settings go in a values file grouped by meaning, with spaces as a list. Credentials are
+always references to Kubernetes Secrets you manage. See the examples in
+[deploy/helm/copernica/examples](deploy/helm/copernica/examples) and the chart's README for
+every value, the extension points and upgrade behavior.
 
-- a namespace enforcing the Pod Security Standard `restricted`;
-- one replica with a persistent volume;
-- a non-root, read-only container with probes.
-
-Adapt `ingress.example.yaml` and create the `copernica` secret from `secret.example.yaml`.
-All settings are listed in
-[contracts/configuration.md](specs/001-git-backed-team-wiki/contracts/configuration.md).
+- **Without Helm in the cluster:** render plain manifests with
+  `helm template wiki deploy/helm/copernica -n wiki -f values.yaml` and apply them. List
+  local accounts with your own Secret in that case, because a generated password would
+  change on every render.
+- **Offline:** `helm package deploy/helm/copernica` produces one archive with no
+  dependencies.
+- **Migrating from the former `deploy/kubernetes` manifests:** keep the data volume.
+  Delete the old Deployment, Service and Secret
+  (`kubectl -n copernica delete deploy/copernica svc/copernica secret/copernica`),
+  move your settings into a values file, and install with
+  `--set persistence.existingClaim=copernica-data`. Pages, discussions and signed-in
+  sessions are kept.
 
 ## Release builds
 

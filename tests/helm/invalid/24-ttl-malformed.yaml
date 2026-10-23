@@ -1,0 +1,5 @@
+# expect: permissionCacheTtl
+wiki:
+  permissionCacheTtl: 10m
+  auth:
+    mode: local

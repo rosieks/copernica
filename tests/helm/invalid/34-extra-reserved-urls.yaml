@@ -1,0 +1,7 @@
+# expect: Copernica.Urls is managed by the chart
+wiki:
+  auth:
+    mode: local
+  extraSettings:
+    Copernica:
+      Urls: http://+:9090

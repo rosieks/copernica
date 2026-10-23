@@ -1,0 +1,132 @@
+# Adapting the deployment to a cluster's own conventions without changing the chart.
+# Every setting here is optional; combine the ones you need with another example.
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: sandbox
+  # Any application setting the chart does not model.
+  extraSettings:
+    Copernica:
+      MaxRenderBytes: 2097152
+    Logging:
+      LogLevel:
+        Default: Warning
+
+# Internal registry with a pull secret.
+image:
+  registry: registry.example.internal
+imagePullSecrets:
+  - name: regcred
+
+# Labels on every resource, plus per-resource labels and annotations.
+commonLabels:
+  cost-centre: wiki
+podLabels:
+  example.com/owner: docs-team
+podAnnotations:
+  backup.example.com/enabled: "true"
+deploymentAnnotations:
+  example.com/change-ticket: CHG-1234
+service:
+  annotations:
+    example.com/scrape: "true"
+persistence:
+  storageClass: fast
+  size: 20Gi
+  annotations:
+    backup.example.com/schedule: daily
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m
+  hosts:
+    - host: wiki.example.internal
+
+# Identity and scheduling.
+serviceAccount:
+  create: true
+  annotations:
+    example.com/role: wiki
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
+nodeSelector:
+  kubernetes.io/os: linux
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: tools
+    effect: NoSchedule
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+            - key: example.com/pool
+              operator: In
+              values: [tools]
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+priorityClassName: internal-tools
+
+# Pod additions.
+extraEnv:
+  - name: TZ
+    value: Europe/Warsaw
+extraEnvFrom:
+  - configMapRef:
+      name: wiki-extra-env
+      optional: true
+extraVolumes:
+  - name: custom-ca
+    configMap:
+      name: custom-ca
+      optional: true
+extraVolumeMounts:
+  - name: custom-ca
+    mountPath: /etc/ssl/custom
+    readOnly: true
+initContainers:
+  - name: wait-for-proxy
+    image: registry.example.internal/busybox:1.36
+    command: ["sh", "-c", "true"]
+    securityContext:
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: [ALL] }
+sidecars:
+  - name: log-shipper
+    image: registry.example.internal/log-shipper:1.0
+    securityContext:
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: [ALL] }
+
+# Extra resources, rendered with tpl.
+extraManifests:
+  - |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: {{ include "copernica.fullname" . }}-ingress
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: {{ .Release.Name }}
+      policyTypes: [Ingress]
+      ingress:
+        - ports:
+            - port: 8080

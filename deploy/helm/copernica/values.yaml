@@ -1,0 +1,210 @@
+# Default values for the Copernica chart. Every key is described in README.md.
+#
+# Credentials are NEVER written here as plain values. Wherever the wiki needs one, give a
+# reference to a key in a Kubernetes Secret you manage:
+#   clientSecret: { secretName: wiki-oidc, key: client-secret }
+
+# -- Container image. `digest` wins over `tag`; `tag` defaults to the chart's appVersion.
+image:
+  # -- Registry host, e.g. registry.example.internal. Empty = none (local or Docker Hub naming).
+  registry: ""
+  repository: copernica
+  tag: ""
+  # -- Image digest, e.g. sha256:0123…
+  digest: ""
+  pullPolicy: IfNotPresent
+
+# -- Secrets for pulling the image from a private registry, e.g. [{ name: regcred }].
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Labels added to every resource the chart renders.
+commonLabels: {}
+
+# -- Must stay 1: the wiki keeps its data on one volume and serializes writes in one process.
+replicaCount: 1
+
+# -- Application settings, grouped as the wiki's own configuration.
+wiki:
+  # -- Address users open in the browser. Default: https://<first ingress host>
+  # (http:// without ingress TLS). Required for OIDC / Entra ID redirects without an ingress.
+  publicBaseUrl: ""
+  # -- How often each space fetches from its repository, as a TimeSpan, e.g. "00:01:00".
+  # Empty = the application default (1 minute).
+  syncInterval: ""
+  # -- How long repository permissions are cached, as a TimeSpan, at most "00:05:00".
+  # Empty = the application default (2 minutes).
+  permissionCacheTtl: ""
+  # -- Pages larger than this many bytes are not rendered. Empty = 1048576.
+  maxRenderBytes: null
+  # -- Commit email domain for users whose identity has no email. Empty = users.noreply.invalid.
+  fallbackEmailDomain: ""
+  forwardedHeaders:
+    # -- IP addresses of trusted reverse proxies, e.g. ["10.0.0.10"].
+    knownProxies: []
+
+  auth:
+    # -- REQUIRED. How people sign in: local | entraId | oidc.
+    mode: ""
+    local:
+      # -- Built-in accounts. Each needs a password hash from `copernica hash-password` in a
+      # Secret, e.g. { name: alice, displayName: Alice, email: alice@example.com,
+      #   passwordHash: { secretName: wiki-local-users, key: alice } }.
+      # Leave empty to get one generated initial account (see initialUser).
+      users: []
+      initialUser:
+        # -- Name of the account generated when `users` is empty. Its password is generated
+        # once into the Secret <fullname>-initial-user and kept across upgrades. Tools that
+        # render without cluster access (helm template, Argo CD) generate a new password on
+        # every render: list `users` with your own Secret there instead.
+        name: admin
+    entraId:
+      # -- Empty = https://login.microsoftonline.com/
+      instance: ""
+      tenantId: ""
+      clientId: ""
+      # -- { secretName, key } of the app registration's client secret.
+      clientSecret: null
+    oidc:
+      # -- Issuer URL, e.g. https://adfs.example.internal/adfs
+      authority: ""
+      clientId: ""
+      # -- { secretName, key } of the client secret.
+      clientSecret: null
+
+  azureDevOps:
+    # -- Read-only identity the wiki uses to keep its copy of Azure DevOps repositories up to date.
+    syncCredential:
+      # -- none | servicePrincipal | managedIdentity | pat
+      type: none
+      tenantId: ""
+      clientId: ""
+      # -- { secretName, key }, for servicePrincipal.
+      clientSecret: null
+      managedIdentityClientId: ""
+      # -- { secretName, key } of a personal access token with Code (Read), for pat.
+      pat: null
+    server:
+      # -- Azure DevOps Server: users enter their own personal access token on their profile page.
+      userPat: false
+
+  attachments:
+    # -- Where pasted images are stored, relative to the space root. Tokens: {dir}, {page}.
+    # Empty = .attachments
+    path: ""
+    # -- Maximum size of one image in bytes. Empty = 10485760.
+    maxBytes: null
+    # -- Maximum total size of a user's unsaved images in bytes. Empty = 209715200.
+    maxPendingBytesPerUser: null
+
+  # -- Spaces, one entry per repository or folder. Example:
+  # - id: handbook                       # required, lowercase letters, digits and hyphens
+  #   displayName: Team Handbook
+  #   provider: azureDevOps              # git (default) | azureDevOps
+  #   remoteUrl: https://dev.azure.com/contoso/Platform/_git/handbook
+  #   branch: main
+  #   folder: docs
+  #   attachments: { path: images }
+  #   credential:                        # git spaces with an HTTPS remote
+  #     username: copernica
+  #     token: { secretName: wiki-git, key: token }
+  spaces: []
+
+  # -- Any other application setting, in the application's own hierarchy, relative to the
+  # configuration root. Use it for settings this chart version does not model. Example:
+  #   Copernica: { MaxRenderBytes: 2097152 }
+  #   Logging: { LogLevel: { Default: Warning } }
+  # A setting the chart already models, Copernica:DataDirectory and Copernica:Urls are
+  # rejected. NOT for secrets: this ends up in a ConfigMap. Use extraEnvFrom with a Secret.
+  extraSettings: {}
+
+serviceAccount:
+  # -- Create a ServiceAccount for the pod.
+  create: false
+  # -- Name to use. Empty = <fullname> when created, otherwise the namespace's "default".
+  name: ""
+  annotations: {}
+  # -- Mount the service account token. The wiki does not need it.
+  automountToken: false
+
+deploymentAnnotations: {}
+podLabels: {}
+podAnnotations: {}
+
+# -- Merged over the chart's restricted defaults (runAsNonRoot, UID/GID 1654, RuntimeDefault seccomp).
+podSecurityContext: {}
+# -- Merged over the chart's restricted defaults (no privilege escalation, read-only root, drop ALL).
+securityContext: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+
+probes:
+  liveness:
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- Gives the first start time to clone repositories (up to 5 minutes by default).
+  startup:
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 60
+
+service:
+  type: ClusterIP
+  port: 80
+  labels: {}
+  annotations: {}
+
+# -- Off by default: exposing the wiki outside the cluster is your decision.
+ingress:
+  enabled: false
+  className: ""
+  labels: {}
+  annotations: {}
+  # -- e.g. [{ host: wiki.example.internal, paths: [{ path: /, pathType: Prefix }] }]
+  # A host without paths gets "/" (Prefix).
+  hosts: []
+  # -- e.g. [{ hosts: [wiki.example.internal], secretName: wiki-tls }]
+  tls: []
+
+persistence:
+  # -- Use an existing claim (e.g. copernica-data from the old manifests). The chart then creates none.
+  existingClaim: ""
+  size: 10Gi
+  # -- "" = the cluster's default class, "-" = no class.
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  labels: {}
+  annotations: {}
+  # -- Keep the created claim when the release is uninstalled.
+  keepOnUninstall: true
+
+# -- Extra environment variables. They override the configuration file.
+extraEnv: []
+# -- Extra environment sources, e.g. [{ secretRef: { name: wiki-extra } }].
+extraEnvFrom: []
+extraVolumes: []
+extraVolumeMounts: []
+# -- Init containers. They must also satisfy the restricted Pod Security Standard.
+initContainers: []
+# -- Additional containers next to the wiki.
+sidecars: []
+# -- Any extra resources, as objects or strings; both are rendered with tpl.
+extraManifests: []

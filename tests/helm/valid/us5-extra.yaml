@@ -1,0 +1,13 @@
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: handbook
+  extraSettings:
+    Copernica:
+      MaxRenderBytes: 2048
+      Database:
+        Provider: Example
+    Logging:
+      LogLevel:
+        Default: Warning

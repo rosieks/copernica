@@ -1,0 +1,5 @@
+# expect: replicas
+replicas: 1
+wiki:
+  auth:
+    mode: local

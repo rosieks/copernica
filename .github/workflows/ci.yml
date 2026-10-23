@@ -100,6 +100,39 @@ jobs:
         shell: pwsh
         run: ./scripts/publish.ps1 -Runtime ${{ matrix.rid }}
 
+  helm:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    env:
+      KUBECONFORM_VERSION: v0.6.7
+      KUBECONFORM_SHA256: 95f14e87aa28c09d5941f11bd024c1d02fdc0303ccaa23f61cef67bc92619d73
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+      - name: Install kubeconform
+        run: |
+          curl -sSLo kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum --check
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo mv kubeconform /usr/local/bin/
+      - name: Render checks
+        shell: pwsh
+        run: ./scripts/test-helm.ps1 -RenderOnly
+      - name: Build image
+        run: docker build -f deploy/Dockerfile -t copernica:ci .
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.25.0
+          node_image: kindest/node:v1.31.2
+          cluster_name: copernica
+      - name: Install, upgrade and uninstall in kind (restricted namespace)
+        shell: pwsh
+        run: |
+          kind load docker-image copernica:ci --name copernica
+          ./scripts/test-helm.ps1 -ImageTag ci
+
   container:
     runs-on: ubuntu-latest
     steps:

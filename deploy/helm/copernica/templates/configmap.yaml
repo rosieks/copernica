@@ -1,0 +1,12 @@
+{{- $build := include "copernica.build" . | fromJson }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "copernica.fullname" . }}-config
+  labels:
+    {{- include "copernica.labels" . | nindent 4 }}
+data:
+  # Application configuration, loaded through COPERNICA_CONFIG_FILE. Credentials appear
+  # only as *_FILE paths to the mounted Secret keys.
+  copernica.json: |
+    {{- toPrettyJson $build.document | nindent 4 }}

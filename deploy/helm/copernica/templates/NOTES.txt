@@ -1,0 +1,44 @@
+{{- $fullname := include "copernica.fullname" . -}}
+{{- $url := include "copernica.publicBaseUrl" . -}}
+Copernica is installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Reach the wiki:
+{{- if .Values.ingress.enabled }}
+  {{ $url }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ $fullname }} 8080:{{ .Values.service.port }}
+  then open http://localhost:8080
+{{- end }}
+{{- if $url }}
+
+Public address used for sign-in redirects: {{ $url }}
+{{- else if ne .Values.wiki.auth.mode "local" }}
+
+WARNING: no public address. Set wiki.publicBaseUrl (or enable the ingress) so that
+{{ .Values.wiki.auth.mode }} sign-in can redirect back to the wiki.
+{{- end }}
+{{- if include "copernica.generatesInitialUser" . }}
+
+Sign in as "{{ .Values.wiki.auth.local.initialUser.name }}". The password was generated into a Secret:
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "copernica.initialUserSecretName" . }} -o jsonpath='{.data.password}' | base64 -d
+It stays the same across upgrades. With helm template or GitOps tools that render without
+cluster access, a new password is generated on every render: list wiki.auth.local.users
+with your own Secret there instead.
+{{- end }}
+{{- if not .Values.wiki.spaces }}
+
+No spaces configured; add entries under wiki.spaces.
+{{- end }}
+{{- $kept := list }}
+{{- if and (not .Values.persistence.existingClaim) .Values.persistence.keepOnUninstall }}
+{{- $kept = append $kept (printf "pvc/%s" (include "copernica.claimName" .)) }}
+{{- end }}
+{{- if include "copernica.generatesInitialUser" . }}
+{{- $kept = append $kept (printf "secret/%s" (include "copernica.initialUserSecretName" .)) }}
+{{- end }}
+{{- if $kept }}
+
+"helm uninstall" keeps {{ join " and " $kept }}, so no data or password is lost.
+Delete them explicitly when the wiki is no longer needed:
+  kubectl -n {{ .Release.Namespace }} delete {{ join " " $kept }}
+{{- end }}

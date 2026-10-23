@@ -1,0 +1,4 @@
+# expect: wiki.auth.mode is required
+wiki:
+  spaces:
+    - id: handbook

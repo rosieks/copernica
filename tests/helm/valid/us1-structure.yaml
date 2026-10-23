@@ -1,0 +1,16 @@
+wiki:
+  auth:
+    mode: entraId
+    entraId:
+      tenantId: tenant
+      clientId: client
+      clientSecret: { secretName: credential-sentinel, key: credential-sentinel-key }
+  spaces:
+    - id: handbook
+      provider: azureDevOps
+      remoteUrl: https://dev.azure.com/contoso/Platform/_git/handbook
+    - id: payments
+      provider: azureDevOps
+      remoteUrl: https://dev.azure.com/contoso/Payments/_git/payments-api
+      folder: docs
+      attachments: { path: images }

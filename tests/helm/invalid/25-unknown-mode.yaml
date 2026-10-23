@@ -1,0 +1,4 @@
+# expect: wiki.auth.mode
+wiki:
+  auth:
+    mode: ldap

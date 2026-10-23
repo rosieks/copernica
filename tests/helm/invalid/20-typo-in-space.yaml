@@ -1,0 +1,7 @@
+# expect: brnach
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: handbook
+      brnach: main

@@ -1,0 +1,7 @@
+# expect: Copernica.DataDirectory is managed by the chart
+wiki:
+  auth:
+    mode: local
+  extraSettings:
+    Copernica:
+      DataDirectory: /elsewhere

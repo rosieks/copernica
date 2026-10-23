@@ -1,0 +1,9 @@
+# expect: conflicts with wiki.spaces
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: handbook
+  extraSettings:
+    Copernica:
+      Spaces: []

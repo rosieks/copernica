@@ -1,0 +1,7 @@
+# expect: passwordHash
+wiki:
+  auth:
+    mode: local
+    local:
+      users:
+        - name: alice

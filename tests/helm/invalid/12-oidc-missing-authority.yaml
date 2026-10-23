@@ -1,0 +1,7 @@
+# expect: authority
+wiki:
+  auth:
+    mode: oidc
+    oidc:
+      clientId: c
+      clientSecret: { secretName: wiki-oidc, key: client-secret }

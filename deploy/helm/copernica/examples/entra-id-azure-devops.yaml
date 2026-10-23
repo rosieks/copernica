@@ -1,0 +1,40 @@
+# Azure DevOps Services with Microsoft Entra ID sign-in, exposed through an ingress.
+#
+#   kubectl -n wiki create secret generic wiki-entra --from-literal=client-secret='<secret>'
+#   kubectl -n wiki create secret generic wiki-ado --from-literal=pat='<read-only PAT>'
+wiki:
+  auth:
+    mode: entraId
+    entraId:
+      tenantId: 00000000-0000-0000-0000-000000000000
+      clientId: 00000000-0000-0000-0000-000000000000
+      clientSecret: { secretName: wiki-entra, key: client-secret }
+  azureDevOps:
+    syncCredential:
+      type: pat
+      pat: { secretName: wiki-ado, key: pat }
+  spaces:
+    - id: handbook
+      displayName: Team Handbook
+      provider: azureDevOps
+      remoteUrl: https://dev.azure.com/contoso/Platform/_git/handbook
+    - id: payments
+      displayName: Payments Service
+      provider: azureDevOps
+      remoteUrl: https://dev.azure.com/contoso/Payments/_git/payments-api
+      folder: docs
+      attachments: { path: images }
+    - id: platform
+      displayName: Platform Wiki
+      provider: azureDevOps
+      remoteUrl: https://dev.azure.com/contoso/Platform/_git/Platform.wiki
+      branch: wikiMaster
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: wiki.example.internal
+  tls:
+    - hosts: [wiki.example.internal]
+      secretName: wiki-tls

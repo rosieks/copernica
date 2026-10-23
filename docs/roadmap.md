@@ -5,7 +5,23 @@ when work on it starts. Done features are listed in the README.
 
 ## Next
 
-### 008 – Links to headings
+### 008 – Helm chart (implemented)
+
+Specified in [specs/008-helm-chart](../specs/008-helm-chart/spec.md). Replaces the
+kustomize manifests in `deploy/kubernetes`; `helm template` remains the path for deployers
+who do not use Helm.
+
+- Settings in `values.yaml` grouped by meaning (spaces as a list of entries) instead of
+  indexed environment variables; credentials only as Secret references, or generated when
+  the wiki owns them and nothing is given.
+- Extension points for unforeseen needs: image registry and pull secrets, extra
+  labels/annotations, volumes, sidecars and manifests, and a free-form application-settings
+  section.
+- Validation at install time (also used by 010).
+- Safe defaults: Pod Security Standard `restricted`, a single replica (no autoscaling),
+  persistent volume, ingress off by default.
+
+### 009 – Links to headings
 
 Headings already get GitHub-style identifiers when rendered (`MarkdownRenderer`); what is
 missing is everything the user sees:
@@ -22,20 +38,6 @@ missing is everything the user sees:
 To check: the sanitizer keeps heading `id`s, duplicate headings get distinct anchors, and
 anchors match Azure DevOps Wiki so links work in both places.
 
-### 009 – Helm chart
-
-Replaces the kustomize manifests in `deploy/kubernetes`; `helm template` remains the path
-for deployers who do not use Helm.
-
-- Spaces and other settings in `values.yaml`, rendered into a config file (ConfigMap)
-  instead of indexed environment variables; secrets via `existingSecret`.
-- `values.schema.json` so invalid values fail at install time (also used by 010).
-- Safe defaults: Pod Security Standard `restricted`, a single replica (no autoscaling),
-  persistent volume, ingress off by default.
-- Offline / air-gapped use: overridable image registry, chart published as an OCI artifact
-  to the organization's registry.
-- CI: `helm lint`, `helm template` validated with kubeconform, optionally helm-unittest.
-
 ### 010 – Admin onboarding (setup CLI)
 
 Subcommands of the existing executable (like `hash-password`), not a separate tool, to keep
@@ -48,7 +50,8 @@ one artifact per platform.
   `CopernicaOptionsValidator`) and optionally checks the configured OIDC and repository
   endpoints. It connects only to endpoints the deployer configured.
 
-Depends on 009: the wizard produces values for the chart's schema.
+Depends on 008: the wizard writes values for `deploy/helm/copernica/values.schema.json`
+(credentials as Secret references, spaces as a list).
 
 ## Before a wider rollout
 

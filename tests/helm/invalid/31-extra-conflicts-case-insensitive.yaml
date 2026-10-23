@@ -1,0 +1,8 @@
+# expect: conflicts with wiki.auth.mode
+wiki:
+  auth:
+    mode: local
+  extraSettings:
+    copernica:
+      auth:
+        MODE: Oidc

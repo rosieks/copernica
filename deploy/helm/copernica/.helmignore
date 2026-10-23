@@ -1,0 +1,12 @@
+# Patterns ignored when packaging the chart. The examples/ folder is kept on purpose: the
+# packaged chart must be usable offline on its own.
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.idea/
+.vscode/
