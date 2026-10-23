@@ -7,6 +7,8 @@ WORKDIR /src/src/web
 COPY src/web/package.json src/web/package-lock.json ./
 RUN npm ci
 COPY src/web/ ./
+# The type check also covers unit tests, which import the shared anchoring fixtures.
+COPY tests/fixtures/anchoring/ /src/tests/fixtures/anchoring/
 RUN npm run build
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
