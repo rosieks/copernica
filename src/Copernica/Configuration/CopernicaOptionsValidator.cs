@@ -47,6 +47,18 @@ public sealed class CopernicaOptionsValidator : IValidateOptions<CopernicaOption
             errors.Add("Copernica:FallbackEmailDomain must be set.");
         }
 
+        if (options.Auth.Mode == AuthMode.Local)
+        {
+            for (var i = 0; i < options.Auth.Local.Users.Count; i++)
+            {
+                var user = options.Auth.Local.Users[i];
+                if (string.IsNullOrEmpty(user.Password) == string.IsNullOrEmpty(user.PasswordHash))
+                {
+                    errors.Add($"Copernica:Auth:Local:Users:{i} ({user.Name}) must set exactly one of Password or PasswordHash.");
+                }
+            }
+        }
+
         switch (options.Auth.Mode)
         {
             case AuthMode.EntraId when string.IsNullOrWhiteSpace(options.Auth.EntraId.TenantId) || string.IsNullOrWhiteSpace(options.Auth.EntraId.ClientId):
