@@ -1,0 +1,5 @@
+wiki:
+  auth:
+    mode: local
+persistence:
+  existingClaim: copernica-data

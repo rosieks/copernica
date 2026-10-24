@@ -1,0 +1,14 @@
+apiVersion: v2
+name: copernica
+description: Self-hosted team wiki that stores pages as Markdown in git repositories.
+type: application
+# Chart version (semantic versioning). A renamed or moved value keeps working with a
+# deprecation notice for at least one minor version, or is rejected with its new name.
+version: 0.1.0
+# Default image tag.
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - wiki
+  - git
+  - markdown

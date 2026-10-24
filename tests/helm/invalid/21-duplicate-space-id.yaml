@@ -1,0 +1,7 @@
+# expect: duplicate id "handbook"
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: handbook
+    - id: handbook

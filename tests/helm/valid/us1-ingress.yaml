@@ -1,0 +1,10 @@
+wiki:
+  auth:
+    mode: local
+ingress:
+  enabled: true
+  hosts:
+    - host: wiki.example.internal
+  tls:
+    - hosts: [wiki.example.internal]
+      secretName: wiki-tls

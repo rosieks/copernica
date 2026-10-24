@@ -1,0 +1,148 @@
+{{- $build := include "copernica.build" . | fromJson }}
+{{- $podSecurity := mergeOverwrite (dict "runAsNonRoot" true "runAsUser" 1654 "runAsGroup" 1654 "fsGroup" 1654 "seccompProfile" (dict "type" "RuntimeDefault")) (deepCopy .Values.podSecurityContext) }}
+{{- $containerSecurity := mergeOverwrite (dict "allowPrivilegeEscalation" false "readOnlyRootFilesystem" true "capabilities" (dict "drop" (list "ALL"))) (deepCopy .Values.securityContext) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "copernica.fullname" . }}
+  labels:
+    {{- include "copernica.labels" . | nindent 4 }}
+  {{- with .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  # Single replica by design (Constitution V): writes are serialized in-process, and
+  # Recreate stops the old pod before the new one opens the data volume.
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "copernica.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "copernica.selectorLabels" . | nindent 8 }}
+        {{- with .Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Restarts the wiki when a setting or a Secret reference changes.
+        checksum/config: {{ printf "%s%s" (toJson $build.document) (toJson $build.projected) | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "copernica.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountToken }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml $podSecurity | nindent 8 }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: copernica
+          image: {{ include "copernica.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $containerSecurity | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: COPERNICA_CONFIG_FILE
+              value: /etc/copernica/copernica.json
+            {{- with .Values.extraEnv }}
+            {{- tpl (toYaml .) $ | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- tpl (toYaml .) $ | nindent 12 }}
+          {{- end }}
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            {{- toYaml .Values.probes.startup | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/copernica
+              readOnly: true
+            {{- if $build.projected }}
+            - name: credentials
+              mountPath: /var/run/secrets/copernica
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- tpl (toYaml .) $ | nindent 12 }}
+            {{- end }}
+        {{- with .Values.sidecars }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "copernica.claimName" . }}
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "copernica.fullname" . }}-config
+        {{- if $build.projected }}
+        - name: credentials
+          projected:
+            defaultMode: 0440
+            sources:
+              {{- include "copernica.projectedSources" $build.projected | nindent 14 }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- end }}

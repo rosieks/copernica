@@ -1,0 +1,10 @@
+# expect: duplicate name "alice"
+wiki:
+  auth:
+    mode: local
+    local:
+      users:
+        - name: alice
+          passwordHash: { secretName: users, key: a }
+        - name: alice
+          passwordHash: { secretName: users, key: b }

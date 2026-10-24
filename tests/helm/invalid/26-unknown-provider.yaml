@@ -1,0 +1,7 @@
+# expect: provider
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: handbook
+      provider: github

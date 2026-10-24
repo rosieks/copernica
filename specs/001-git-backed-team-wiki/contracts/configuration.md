@@ -1,9 +1,14 @@
 # Contract: Configuration and Deployment Interface
 
 Configuration follows ASP.NET Core conventions: every key can be set as an environment
-variable (`__` separates levels) or in `copernica.json` in the data directory. Secrets are
-read from environment variables or files (e.g. Kubernetes Secrets mounted as files via
-`*_FILE` keys). Defaults are the safest configuration (Constitution, Security section).
+variable (`__` separates levels) or in a JSON configuration file named by the environment
+variable `COPERNICA_CONFIG_FILE` (008, used by the Helm chart). Environment variables
+override that file. Secrets are read from environment variables or files (e.g. Kubernetes
+Secrets mounted as files via `*_FILE` keys, which also work inside the configuration file).
+Defaults are the safest configuration (Constitution, Security section).
+
+On Kubernetes, use the Helm chart in `deploy/helm/copernica`. Its values file groups these
+settings by meaning (008 [contracts/values.md](../../008-helm-chart/contracts/values.md)).
 
 ## General
 
@@ -28,6 +33,7 @@ read from environment variables or files (e.g. Kubernetes Secrets mounted as fil
 | `Copernica__Auth__EntraId__ClientSecret` / `..._FILE` | Secret or certificate path |
 | `Copernica__Auth__Oidc__Authority` / `__ClientId` / `__ClientSecret` | Generic OIDC provider (e.g. AD FS) — used with Azure DevOps Server + user PATs |
 | `Copernica__Auth__Local__Users__0__Name` / `__PasswordHash` | Built-in accounts for evaluation / `Git` spaces (hash produced by `copernica hash-password`) |
+| `Copernica__Auth__Local__Users__0__Password` / `..._FILE` | Instead of `PasswordHash` (008): a plain password, normally from a mounted file, hashed in memory at startup. Each user sets exactly one of the two |
 
 ## Spaces
 

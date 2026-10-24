@@ -30,6 +30,7 @@ if (args is ["hash-password", ..])
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddCopernicaConfigFile();
 builder.Configuration.AddFileSecrets();
 
 var copernica = builder.Configuration.GetSection(CopernicaOptions.Section).Get<CopernicaOptions>() ?? new CopernicaOptions();

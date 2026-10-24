@@ -1,0 +1,5 @@
+# expect: maxRenderBytes
+wiki:
+  maxRenderBytes: big
+  auth:
+    mode: local

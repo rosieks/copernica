@@ -1,0 +1,29 @@
+# Azure DevOps Server with sign-in through the organization's OIDC provider (e.g. AD FS).
+# Users enter their own personal access token on their profile page.
+#
+#   kubectl -n wiki create secret generic wiki-oidc --from-literal=client-secret='<secret>'
+#   kubectl -n wiki create secret generic wiki-ado --from-literal=pat='<read-only PAT>'
+wiki:
+  publicBaseUrl: https://wiki.example.internal
+  auth:
+    mode: oidc
+    oidc:
+      authority: https://adfs.example.internal/adfs
+      clientId: copernica
+      clientSecret: { secretName: wiki-oidc, key: client-secret }
+  azureDevOps:
+    syncCredential:
+      type: pat
+      pat: { secretName: wiki-ado, key: pat }
+    server:
+      userPat: true
+  spaces:
+    - id: handbook
+      displayName: Team Handbook
+      provider: azureDevOps
+      remoteUrl: https://devops.example.internal/DefaultCollection/Platform/_git/handbook
+    - id: runbooks
+      displayName: Runbooks
+      provider: azureDevOps
+      remoteUrl: https://devops.example.internal/DefaultCollection/Operations/_git/runbooks
+      folder: docs

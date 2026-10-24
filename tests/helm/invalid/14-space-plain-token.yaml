@@ -1,0 +1,9 @@
+# expect: Invalid type
+wiki:
+  auth:
+    mode: local
+  spaces:
+    - id: handbook
+      remoteUrl: https://git.example.internal/handbook.git
+      credential:
+        token: abc

@@ -1,0 +1,23 @@
+# Built-in accounts and two spaces whose repositories live on the wiki's volume.
+# Good for evaluation and for plain git spaces.
+#
+# Create the account Secret first; the hash comes from the wiki itself:
+#   echo 'alice-password' | docker run -i --rm copernica hash-password
+#   kubectl -n wiki create secret generic wiki-local-users --from-literal=alice='<hash>'
+#
+# Without wiki.auth.local.users the chart instead generates one "admin" account and
+# prints how to read its password.
+wiki:
+  auth:
+    mode: local
+    local:
+      users:
+        - name: alice
+          displayName: Alice
+          email: alice@example.com
+          passwordHash: { secretName: wiki-local-users, key: alice }
+  spaces:
+    - id: handbook
+      displayName: Team Handbook
+    - id: sandbox
+      displayName: Sandbox

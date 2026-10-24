@@ -75,6 +75,12 @@ public sealed class LocalUserOptions
 
     public string PasswordHash { get; set; } = "";
 
+    /// <summary>
+    /// Plain password, normally given as <c>Password_FILE</c> (the Helm chart's generated
+    /// initial account). Hashed in memory at startup and then cleared.
+    /// </summary>
+    public string? Password { get; set; }
+
     public string? DisplayName { get; set; }
 
     public string? Email { get; set; }

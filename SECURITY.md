@@ -37,6 +37,12 @@ and to the system temp directory:
 | `pending/` | Images pasted into the editor and not saved yet (owner-only). Deleted when the page is saved, or 24 hours after their last use; committed to the repository only together with the page |
 | `keys/` | ASP.NET Core Data Protection keys (cookie and token encryption). Protect this directory like a secret; the keys are not additionally encrypted at rest |
 
+**Read, never written:** when `COPERNICA_CONFIG_FILE` is set, Copernica reads that one JSON
+configuration file at startup. The Helm chart mounts it read-only from a ConfigMap at
+`/etc/copernica/copernica.json`, and mounts the referenced Secret keys read-only under
+`/var/run/secrets/copernica/`. The configuration file holds only paths to those keys,
+never credential values.
+
 Back up the data directory as a whole. Page content can always be re-fetched from your git
 hosting platform.
 
@@ -54,7 +60,10 @@ plain text and stay usable with ordinary git tooling.
   `Copernica__Auth__Mode` is set.
 - **Modes:**
   - `Local`: accounts from configuration, PBKDF2 password hashes. Use for evaluation and
-    small teams.
+    small teams. An account may instead give `Password` (normally as `Password_FILE`, a
+    mounted Secret). It is hashed in memory at startup and never logged or stored. The Helm
+    chart uses this for the initial account it generates when no accounts are listed. The
+    generated password is kept in the Secret `<release>-copernica-initial-user`.
   - `EntraId`: Microsoft Entra ID, OIDC code flow with PKCE.
   - `Oidc`: any OpenID Connect provider.
 - **Session:** HttpOnly, `SameSite=Lax` cookie. State-changing requests require an
@@ -178,7 +187,9 @@ sanitized on the server.
 - **Runtime:**
   - Runs as UID `1654` with no Linux capabilities, `allowPrivilegeEscalation: false` and a
     read-only root filesystem (writable `/data` volume and `/tmp`).
-  - Compatible with the Pod Security Standard `restricted` (see `deploy/kubernetes`).
+  - Compatible with the Pod Security Standard `restricted`. The Helm chart in
+    `deploy/helm/copernica` keeps it so by default (no service-account token, `RuntimeDefault`
+    seccomp profile, ingress off), and CI checks every example against `restricted`.
   - Runs as a single replica by design: writes are serialized inside the process.
 
 ## Third-party code

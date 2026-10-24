@@ -15,6 +15,18 @@ public static class LocalAuthentication
 
     public static void Register(IServiceCollection services)
     {
+        // A user with both settings is left untouched so the validator can report it.
+        services.PostConfigure<CopernicaOptions>(options =>
+        {
+            foreach (var user in options.Auth.Local.Users)
+            {
+                if (!string.IsNullOrEmpty(user.Password) && string.IsNullOrEmpty(user.PasswordHash))
+                {
+                    user.PasswordHash = HashPassword(user.Password);
+                    user.Password = null;
+                }
+            }
+        });
     }
 
     public static string HashPassword(string password) => Hasher.HashPassword("", password);

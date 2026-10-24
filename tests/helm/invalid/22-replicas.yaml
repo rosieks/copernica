@@ -1,0 +1,5 @@
+# expect: replicaCount must be 1
+replicaCount: 2
+wiki:
+  auth:
+    mode: local

@@ -1,0 +1,372 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Copernica chart values",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "secretReference": {
+      "type": "object",
+      "description": "A key in a Kubernetes Secret you manage.",
+      "required": ["secretName", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "secretName": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$", "maxLength": 253 },
+        "key": { "type": "string", "minLength": 1, "pattern": "^[-._a-zA-Z0-9]+$" }
+      }
+    },
+    "optionalSecretReference": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/secretReference" }]
+    },
+    "timeSpan": {
+      "type": "string",
+      "pattern": "^$|^(\\d+\\.)?\\d{1,2}:\\d{2}:\\d{2}$"
+    },
+    "positiveIntegerOrNull": {
+      "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 1 }]
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+        "periodSeconds": { "type": "integer", "minimum": 1 },
+        "timeoutSeconds": { "type": "integer", "minimum": 1 },
+        "failureThreshold": { "type": "integer", "minimum": 1 },
+        "successThreshold": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "objectList": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  },
+  "properties": {
+    "global": { "type": "object" },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "registry": { "type": "string" },
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "commonLabels": { "$ref": "#/definitions/stringMap" },
+    "replicaCount": { "type": "integer" },
+    "wiki": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "publicBaseUrl": { "type": "string", "pattern": "^$|^https?://" },
+        "syncInterval": { "$ref": "#/definitions/timeSpan" },
+        "permissionCacheTtl": { "$ref": "#/definitions/timeSpan" },
+        "maxRenderBytes": { "$ref": "#/definitions/positiveIntegerOrNull" },
+        "fallbackEmailDomain": { "type": "string" },
+        "forwardedHeaders": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "knownProxies": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "enum": ["", "local", "entraId", "oidc"] },
+            "local": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["name", "passwordHash"],
+                    "properties": {
+                      "name": { "type": "string", "minLength": 1 },
+                      "displayName": { "type": "string" },
+                      "email": { "type": "string" },
+                      "passwordHash": { "$ref": "#/definitions/secretReference" }
+                    }
+                  }
+                },
+                "initialUser": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            },
+            "entraId": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "instance": { "type": "string", "pattern": "^$|^https://" },
+                "tenantId": { "type": "string" },
+                "clientId": { "type": "string" },
+                "clientSecret": { "$ref": "#/definitions/optionalSecretReference" }
+              }
+            },
+            "oidc": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "authority": { "type": "string", "pattern": "^$|^https?://" },
+                "clientId": { "type": "string" },
+                "clientSecret": { "$ref": "#/definitions/optionalSecretReference" }
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "mode": { "const": "entraId" } }, "required": ["mode"] },
+              "then": {
+                "required": ["entraId"],
+                "properties": {
+                  "entraId": {
+                    "required": ["tenantId", "clientId", "clientSecret"],
+                    "properties": {
+                      "tenantId": { "minLength": 1 },
+                      "clientId": { "minLength": 1 },
+                      "clientSecret": { "$ref": "#/definitions/secretReference" }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "mode": { "const": "oidc" } }, "required": ["mode"] },
+              "then": {
+                "required": ["oidc"],
+                "properties": {
+                  "oidc": {
+                    "required": ["authority", "clientId", "clientSecret"],
+                    "properties": {
+                      "authority": { "minLength": 1 },
+                      "clientId": { "minLength": 1 },
+                      "clientSecret": { "$ref": "#/definitions/secretReference" }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "azureDevOps": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "syncCredential": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": { "enum": ["none", "servicePrincipal", "managedIdentity", "pat"] },
+                "tenantId": { "type": "string" },
+                "clientId": { "type": "string" },
+                "clientSecret": { "$ref": "#/definitions/optionalSecretReference" },
+                "managedIdentityClientId": { "type": "string" },
+                "pat": { "$ref": "#/definitions/optionalSecretReference" }
+              },
+              "allOf": [
+                {
+                  "if": { "properties": { "type": { "const": "servicePrincipal" } }, "required": ["type"] },
+                  "then": {
+                    "required": ["tenantId", "clientId", "clientSecret"],
+                    "properties": {
+                      "tenantId": { "minLength": 1 },
+                      "clientId": { "minLength": 1 },
+                      "clientSecret": { "$ref": "#/definitions/secretReference" }
+                    }
+                  }
+                },
+                {
+                  "if": { "properties": { "type": { "const": "pat" } }, "required": ["type"] },
+                  "then": {
+                    "required": ["pat"],
+                    "properties": { "pat": { "$ref": "#/definitions/secretReference" } }
+                  }
+                }
+              ]
+            },
+            "server": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "userPat": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "attachments": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string" },
+            "maxBytes": { "$ref": "#/definitions/positiveIntegerOrNull" },
+            "maxPendingBytesPerUser": { "$ref": "#/definitions/positiveIntegerOrNull" }
+          }
+        },
+        "spaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "displayName": { "type": "string" },
+              "provider": { "enum": ["git", "azureDevOps"] },
+              "remoteUrl": { "type": "string" },
+              "branch": { "type": "string", "minLength": 1 },
+              "folder": { "type": "string" },
+              "attachments": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": { "path": { "type": "string" } }
+              },
+              "credential": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "username": { "type": "string" },
+                  "token": { "$ref": "#/definitions/optionalSecretReference" }
+                }
+              }
+            },
+            "if": { "properties": { "provider": { "const": "azureDevOps" } }, "required": ["provider"] },
+            "then": { "required": ["remoteUrl"], "properties": { "remoteUrl": { "minLength": 1 } } }
+          }
+        },
+        "extraSettings": { "type": "object" }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean" },
+        "name": { "type": "string" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "automountToken": { "type": "boolean" }
+      }
+    },
+    "deploymentAnnotations": { "$ref": "#/definitions/stringMap" },
+    "podLabels": { "$ref": "#/definitions/stringMap" },
+    "podAnnotations": { "$ref": "#/definitions/stringMap" },
+    "podSecurityContext": { "type": "object" },
+    "securityContext": { "type": "object" },
+    "resources": { "type": "object" },
+    "nodeSelector": { "$ref": "#/definitions/stringMap" },
+    "tolerations": { "$ref": "#/definitions/objectList" },
+    "affinity": { "type": "object" },
+    "topologySpreadConstraints": { "$ref": "#/definitions/objectList" },
+    "priorityClassName": { "type": "string" },
+    "probes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "liveness": { "$ref": "#/definitions/probe" },
+        "readiness": { "$ref": "#/definitions/probe" },
+        "startup": { "$ref": "#/definitions/probe" }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "labels": { "$ref": "#/definitions/stringMap" },
+        "annotations": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "className": { "type": "string" },
+        "labels": { "$ref": "#/definitions/stringMap" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["host"],
+            "properties": {
+              "host": { "type": "string", "minLength": 1 },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["path"],
+                  "properties": {
+                    "path": { "type": "string", "pattern": "^/" },
+                    "pathType": { "enum": ["Prefix", "Exact", "ImplementationSpecific"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "hosts": { "type": "array", "items": { "type": "string" } },
+              "secretName": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingClaim": { "type": "string" },
+        "size": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?([EPTGMK]i?)?$" },
+        "storageClass": { "type": "string" },
+        "accessMode": { "enum": ["ReadWriteOnce", "ReadWriteOncePod", "ReadWriteMany"] },
+        "labels": { "$ref": "#/definitions/stringMap" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "keepOnUninstall": { "type": "boolean" }
+      }
+    },
+    "extraEnv": { "$ref": "#/definitions/objectList" },
+    "extraEnvFrom": { "$ref": "#/definitions/objectList" },
+    "extraVolumes": { "$ref": "#/definitions/objectList" },
+    "extraVolumeMounts": { "$ref": "#/definitions/objectList" },
+    "initContainers": { "$ref": "#/definitions/objectList" },
+    "sidecars": { "$ref": "#/definitions/objectList" },
+    "extraManifests": {
+      "type": "array",
+      "items": { "type": ["object", "string"] }
+    }
+  }
+}
