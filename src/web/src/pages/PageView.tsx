@@ -12,6 +12,9 @@ import { SelectionPopover, useArticleSelection } from '../discussions/SelectionP
 import { rangesForOffsets, type TextAnchorInput } from '../discussions/textAnchor';
 import { highlightTargets, useDiscussions } from '../discussions/useDiscussions';
 import { useDiagrams } from '../diagrams/useDiagrams';
+import { clickedLink, isPlainClick } from '../sections/contentLinks';
+import { SectionLinks } from '../sections/SectionLinks';
+import { useSectionNavigation } from '../sections/useSectionNavigation';
 import { useHighlights } from '../discussions/useHighlights';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { MEDIUM, useMediaQuery, WIDE } from '../layout/useMediaQuery';
@@ -25,9 +28,10 @@ import { PageInfo } from './PageInfo';
 import { StateIndicators } from './StateIndicators';
 import './PageView.css';
 
-export function usePage(spaceId: string, path: string, version?: string) {
+export function usePage(spaceId: string, path: string, version?: string, enabled = true) {
   return useQuery({
     queryKey: ['page', spaceId, path, version ?? 'head'],
+    enabled,
     queryFn: () => api<Schemas['Page']>(pageApi(spaceId, path) + (version ? `?version=${encodeURIComponent(version)}` : '')),
   });
 }
@@ -116,6 +120,8 @@ export function PageView({ space, path, version, asideNode, onTreeAction }: Prop
   useHighlights(article, targets, activeId, activateFromPage);
   // Diagram figures in the sanitized HTML are drawn as images (004); the text never waits for them.
   const diagramStatus = useDiagrams(article, data?.html);
+  // Section links (009): scroll to the location's #fragment once the article is in place.
+  useSectionNavigation(article, data?.tooLarge ? undefined : data?.html);
 
   const comment = useCallback(
     (anchor: TextAnchorInput) => {
@@ -147,12 +153,19 @@ export function PageView({ space, path, version, asideNode, onTreeAction }: Prop
   });
 
   function onClick(event: MouseEvent<HTMLElement>) {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const anchor = (event.target as Element).closest('a');
-    const href = anchor?.getAttribute('href');
-    if (!href?.startsWith('/s/')) return;
+    if (!isPlainClick(event)) return;
+    const link = clickedLink(event);
+    if (!link) return;
+    const { anchor, href } = link;
+    if (href.startsWith('#')) {
+      // A section of this page: a history entry the section hook resolves (009 FR-013).
+      event.preventDefault();
+      navigate({ pathname: location.pathname, search: location.search, hash: href });
+      return;
+    }
+    if (!href.startsWith('/s/')) return;
     event.preventDefault();
-    if (anchor!.classList.contains('broken-link') && space.canWrite) {
+    if (anchor.classList.contains('broken-link') && space.canWrite) {
       // Offer to create the missing page.
       const [, , target, ...rest] = href.split('/');
       if (target === spaceId) {
@@ -318,6 +331,14 @@ export function PageView({ space, path, version, asideNode, onTreeAction }: Prop
           <p className="visually-hidden" role="status" aria-live="polite">
             {diagramStatus}
           </p>
+          <SectionLinks
+            article={article}
+            html={loaded.html}
+            spaceId={spaceId}
+            path={path}
+            commitId={loaded.version.commitId}
+            isCurrent={isCurrent}
+          />
           {withDiscussions && <HighlightMarkers article={article} targets={targets} activeId={activeId} onActivate={activateFromPage} />}
         </div>
       )}

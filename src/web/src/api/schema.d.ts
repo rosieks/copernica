@@ -469,7 +469,7 @@ export interface paths {
                     };
                 };
                 /**
-                 * @description `type` = `not-found` (extension `deletedIn` when the page was deleted) |
+                 * @description `type` = `not-found` (extensions `deletedIn`, `lastVersion` when the page was deleted) |
                  *     `page-moved` (extensions `currentPath`, `movedIn`; 005 research R4)
                  */
                 404: {
@@ -885,14 +885,15 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Sanitized HTML */
+                /** @description Sanitized HTML and the H1–H3 sections of the posted Markdown (009) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            html?: string;
+                            html: string;
+                            sections: components["schemas"]["Section"][];
                         };
                     };
                 };
@@ -1292,12 +1293,22 @@ export interface components {
             /** @description File blob at that commit */
             blobId?: string | null;
         };
+        /** @description A heading a reader can link to (009). Rendered elements carry id="user-content-{id}". */
+        Section: {
+            level: number;
+            /** @description Section address (URL fragment) without the user-content- prefix */
+            id: string;
+            /** @description Visible plain text of the heading */
+            text: string;
+        };
         Page: {
             spaceId: string;
             path: string;
             title: string;
-            /** @description Sanitized HTML */
+            /** @description Sanitized HTML; element ids are prefixed with user-content- */
             html: string;
+            /** @description H1–H3 headings in document order; empty when tooLarge (009) */
+            sections: components["schemas"]["Section"][];
             source?: string | null;
             version: components["schemas"]["PageVersionRef"];
             isCurrent?: boolean;

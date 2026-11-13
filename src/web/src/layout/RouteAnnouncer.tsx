@@ -19,6 +19,9 @@ export function RouteAnnouncer() {
   const location = useLocation();
   const [message, setMessage] = useState('');
   const first = useRef(true);
+  // A #section link (009) moves focus to that heading itself; only the title is announced.
+  const hash = useRef(location.hash);
+  hash.current = location.hash;
 
   useEffect(() => {
     if (first.current) {
@@ -35,7 +38,7 @@ export function RouteAnnouncer() {
       if (!heading || cancelled) return false;
       if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
       // Keep focus that the view placed deliberately (e.g. inside a form).
-      if (!main?.contains(document.activeElement) || document.activeElement === document.body) heading.focus({ preventScroll: true });
+      if (!hash.current && (!main?.contains(document.activeElement) || document.activeElement === document.body)) heading.focus({ preventScroll: true });
       setMessage(document.title);
       return true;
     };
@@ -49,7 +52,7 @@ export function RouteAnnouncer() {
       if (!main) return;
       observer = new MutationObserver(() => {
         if (!settled) settled = settle();
-        else if (document.activeElement === document.body || !document.activeElement?.isConnected) settle();
+        else if (!hash.current && (document.activeElement === document.body || !document.activeElement?.isConnected)) settle();
       });
       observer.observe(main, { childList: true, subtree: true });
     }, 50);

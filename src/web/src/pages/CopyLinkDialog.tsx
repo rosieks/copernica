@@ -4,11 +4,14 @@ import { Button, Dialog, DialogClose, Field } from '../ui';
 /** Fallback when the clipboard is unavailable (FR-022, research R9). */
 export function CopyLinkDialog({
   url,
+  label = 'Link to this page',
   open,
   onOpenChange,
   returnFocusTo,
 }: {
   url: string;
+  /** The field label, e.g. "Link to this section" (009). */
+  label?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnFocusTo?: RefObject<HTMLElement | null>;
@@ -31,7 +34,7 @@ export function CopyLinkDialog({
         </DialogClose>
       }
     >
-      <Field ref={input} label="Link to this page" hint="Press Ctrl+C (⌘C) to copy." readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+      <Field ref={input} label={label} hint="Press Ctrl+C (⌘C) to copy." readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
     </Dialog>
   );
 }

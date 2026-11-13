@@ -75,6 +75,35 @@ public sealed class SanitizationTests
     {
         var html = _renderer.Render("# Getting started");
 
-        Assert.Contains("id=\"getting-started\"", html);
+        Assert.Contains("id=\"user-content-getting-started\"", html);
+    }
+
+    [Theory]
+    [InlineData("<h2 id=\"main\">Main</h2>", "user-content-main")]
+    [InlineData("<div id=\"root\">x</div>", "user-content-root")]
+    [InlineData("<h2 id=\"user-content-x\">X</h2>", "user-content-x")]
+    public void Ids_in_user_content_are_prefixed(string markdown, string expected)
+    {
+        var html = _renderer.Render(markdown);
+
+        Assert.Contains($"id=\"{expected}\"", html);
+        Assert.DoesNotContain("user-content-user-content-", html);
+    }
+
+    [Fact]
+    public void Footnote_ids_are_prefixed_and_their_links_are_unchanged()
+    {
+        var html = _renderer.Render("A claim.[^1]\n\n[^1]: The note.\n");
+
+        Assert.Contains("id=\"user-content-fn:1\"", html);
+        Assert.Contains("href=\"#fn:1\"", html);
+    }
+
+    [Fact]
+    public void Section_links_keep_their_fragment_unprefixed()
+    {
+        var html = _renderer.Render("[x](#setup)");
+
+        Assert.Contains("href=\"#setup\"", html);
     }
 }

@@ -120,7 +120,8 @@ public static class PageWriteEndpoints
         // Unsaved images of this edit are shown from their upload URL (003 R5); this also keeps them alive.
         var images = await pending.ResolveAsync(access.User!, access.Space!.Id, normalized, request.Attachments, context.RequestAborted);
         var urls = images.ToDictionary(i => i.RepositoryPath, i => $"/api/uploads/{i.Id}", StringComparer.Ordinal);
-        return Results.Ok(new { html = pages.RenderPreview(access.Space!, normalized, request.Markdown, urls) });
+        var rendered = pages.RenderPreview(access.Space!, normalized, request.Markdown, urls);
+        return Results.Ok(new { html = rendered.Html, sections = rendered.Sections });
     }
 
     private static async Task<IResult> HistoryAsync(

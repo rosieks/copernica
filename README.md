@@ -118,6 +118,11 @@ every value, the extension points and upgrade behavior.
   press `c`.
 - **Page actions:** the **⋯** menu offers *Copy link*, *Download Markdown*, *Rename…*,
   *Move…* and *Delete page…*.
+- **Links to sections:** point at a heading (H1–H3) or tab to it and use its link button to
+  copy a link to that section. Opening a section link, or a link such as `page.md#setup`
+  in a page, scrolls to the heading, also in earlier versions and after Back or Forward.
+  Section links copied from an Azure DevOps Wiki work too. In the visual editor's link
+  dialog, choose a page and then, optionally, one of its sections.
 - **Organizing pages:** every page and folder in the tree has an actions menu (hover the row
   and choose **⋯**, right-click it, or press `Shift`+`F10`):
   - **New page here…** and **New folder…** (a folder is created with its first page,

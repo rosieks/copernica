@@ -301,6 +301,7 @@ export default function VisualEditor({ value, onChange, label, spaceId, pagePath
         current={state ? ((linkAt(state)?.mark.attrs.href as string | undefined) ?? null) : null}
         spaceId={spaceId}
         pagePath={pagePath}
+        getMarkdown={flush}
         onInsert={(choice) => {
           const view = viewRef.current;
           if (view) setLinkCommand(choice.href, choice.text)(view.state, view.dispatch, view);

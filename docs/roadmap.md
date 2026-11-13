@@ -21,22 +21,18 @@ who do not use Helm.
 - Safe defaults: Pod Security Standard `restricted`, a single replica (no autoscaling),
   persistent volume, ingress off by default.
 
-### 009 – Links to headings
+### 009 – Links to headings (implemented)
 
-Headings already get GitHub-style identifiers when rendered (`MarkdownRenderer`); what is
-missing is everything the user sees:
+Specified in [specs/009-heading-links](../specs/009-heading-links/spec.md).
 
-- a "copy link to section" control next to each heading, usable with the keyboard and
-  screen readers (002 rules);
-- scrolling to `#anchor` on page load and on in-app navigation, including earlier versions
-  of a page;
-- choosing a section when inserting a link in the visual editor (extends the 005 page
-  picker);
-- possibly Azure DevOps `[[_TOC_]]` rendered as a table of contents (shown only as a
-  placeholder in the visual editor today).
+- A copy-link button on H1–H3, usable with the keyboard and screen readers.
+- Section links open at the heading on first load, in-app navigation, Back/Forward and in
+  earlier versions; links in the Azure DevOps Wiki form are accepted.
+- The visual editor's link dialog can target a section.
+- Ids in user content are prefixed with `user-content-`; section addresses are unchanged.
 
-To check: the sanitizer keeps heading `id`s, duplicate headings get distinct anchors, and
-anchors match Azure DevOps Wiki so links work in both places.
+Left for later: Azure DevOps `[[_TOC_]]` as a generated table of contents, and updating
+links when a heading is renamed.
 
 ### 010 – Admin onboarding (setup CLI)
 

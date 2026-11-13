@@ -52,9 +52,17 @@ public sealed class MarkdownRenderer
     /// Renders Markdown and sanitizes the result. <paramref name="links"/> rewrites link targets;
     /// <paramref name="diagrams"/> turns Mermaid blocks into diagram figures (pages and previews, not comments).
     /// </summary>
-    public string Render(string markdown, ILinkRewriter? links = null, bool diagrams = false)
+    public string Render(string markdown, ILinkRewriter? links = null, bool diagrams = false) =>
+        RenderWithSections(markdown, links, diagrams).Html;
+
+    /// <summary>
+    /// Like <see cref="Render"/>, and also lists the H1–H3 sections of the document (009), taken
+    /// from the same parse so their ids match the rendered headings.
+    /// </summary>
+    public RenderedMarkdown RenderWithSections(string markdown, ILinkRewriter? links = null, bool diagrams = false)
     {
         var document = Markdown.Parse(markdown, _pipeline);
+        var sections = SectionExtractor.Extract(document);
 
         if (links is not null)
         {
@@ -81,7 +89,7 @@ public sealed class MarkdownRenderer
         renderer.Render(document);
         writer.Flush();
 
-        return _sanitizer.Sanitize(writer.ToString());
+        return new RenderedMarkdown(_sanitizer.Sanitize(writer.ToString()), sections);
     }
 
     private static void Replace<T>(HtmlRenderer renderer, IMarkdownObjectRenderer replacement)

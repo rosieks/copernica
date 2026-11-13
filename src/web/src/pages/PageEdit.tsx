@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from 'react';
 import { useDiagrams } from '../diagrams/useDiagrams';
 import type { EditorView } from '@codemirror/view';
 import { ImageIcon } from '@radix-ui/react-icons';
@@ -17,6 +17,8 @@ import { joinNames, shortCommit } from '../format';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { WIDE, useMediaQuery } from '../layout/useMediaQuery';
 import { pageApi, spaceRoute } from '../routes';
+import { clickedLink, isPlainClick } from '../sections/contentLinks';
+import { resolveSection } from '../sections/resolveSection';
 import { copyText } from './PageActions';
 import { useShortcut } from '../shortcuts';
 import { AlertDialog, Button, Callout, Dialog, Field, Tabs, ToggleGroup, useToast } from '../ui';
@@ -85,7 +87,22 @@ function usePreview(spaceId: string, path: string, markdown: string, enabled: bo
 function PreviewPane({ as: Element, html }: { as: 'div' | 'section'; html: string }) {
   const pane = useRef<HTMLElement>(null);
   useDiagrams(pane, html);
-  return <Element ref={pane as RefObject<HTMLDivElement>} className="preview-pane prose" aria-label="Preview" dangerouslySetInnerHTML={{ __html: html }} />;
+  // Section links scroll inside the preview and leave the editor's address alone (009).
+  function onClick(event: MouseEvent<HTMLElement>) {
+    const link = isPlainClick(event) ? clickedLink(event) : null;
+    if (!link?.href.startsWith('#') || !pane.current) return;
+    event.preventDefault();
+    resolveSection(pane.current, link.href)?.scrollIntoView({ block: 'start' });
+  }
+  return (
+    <Element
+      ref={pane as RefObject<HTMLDivElement>}
+      className="preview-pane prose"
+      aria-label="Preview"
+      onClick={onClick}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 /** S4. Markdown editor with preview; save outcomes per contracts/ui.md (FR-006–FR-008). */

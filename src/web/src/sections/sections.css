@@ -1,0 +1,78 @@
+/* Links to headings (009 contracts/ui.md). */
+
+/* The copy-link control at the end of an H1–H3. It stays in the tab order and the accessibility
+   tree; it is only transparent until the heading is pointed at or the control has focus. */
+.section-link {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  vertical-align: middle;
+  user-select: none;
+}
+
+.section-link__button.ui-button {
+  min-height: 32px;
+  min-width: 32px;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+}
+
+.prose :is(h1, h2, h3):hover .section-link__button,
+.section-link__button:focus-visible {
+  opacity: 1;
+}
+
+.section-link__button.ui-button:hover {
+  color: var(--color-text);
+}
+
+/* Touch screens cannot hover: the control is always shown. */
+@media (hover: none) {
+  .section-link__button.ui-button {
+    opacity: 1;
+  }
+}
+
+/* The heading a section link opened: a short fade, or a still outline without motion. */
+.prose .section-target {
+  border-radius: var(--radius-sm);
+  animation: section-target-fade 2s ease-out;
+}
+
+@keyframes section-target-fade {
+  from {
+    background-color: var(--color-highlight);
+  }
+
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prose .section-target {
+    animation: none;
+    outline: 2px solid var(--color-accent-border);
+    outline-offset: 2px;
+  }
+
+  .section-link__button.ui-button {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .section-link__button.ui-button {
+    color: ButtonText;
+  }
+
+  .prose .section-target {
+    outline: 2px solid Highlight;
+  }
+}
+
+@media print {
+  .section-link {
+    display: none;
+  }
+}
