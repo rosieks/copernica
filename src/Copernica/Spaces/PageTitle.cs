@@ -1,10 +1,20 @@
+using Copernica.Rendering;
+
 namespace Copernica.Spaces;
 
-/// <summary>Page title: the first level-1 heading, otherwise the file name (data-model.md "Page").</summary>
+/// <summary>
+/// Page title: the front matter <c>title</c> (010), otherwise the first level-1 heading, otherwise
+/// the file name (data-model.md "Page").
+/// </summary>
 public static class PageTitle
 {
     public static string Resolve(string content, string path)
     {
+        if (FrontMatter.Locate(content) is { } block && FrontMatterParser.Parse(block.Body) is { Readable: true, Title: { } title })
+        {
+            return title;
+        }
+
         return FirstHeading(content)?.Text ?? FromFileName(path);
     }
 
@@ -34,9 +44,7 @@ public static class PageTitle
     {
         var inFence = false;
         string? fence = null;
-        var first = true;
-        var inFrontMatter = false;
-        var position = 0;
+        var position = FrontMatter.Locate(content)?.End ?? 0;
 
         while (position < content.Length)
         {
@@ -46,26 +54,6 @@ public static class PageTitle
             position = newline < 0 ? content.Length : newline + 1;
             var contentEnd = lineEnd > lineStart && content[lineEnd - 1] == '\r' ? lineEnd - 1 : lineEnd;
             var line = content[lineStart..contentEnd].TrimEnd();
-
-            if (first)
-            {
-                first = false;
-                if (line == "---")
-                {
-                    inFrontMatter = true;
-                    continue;
-                }
-            }
-
-            if (inFrontMatter)
-            {
-                if (line is "---" or "...")
-                {
-                    inFrontMatter = false;
-                }
-
-                continue;
-            }
 
             var trimmed = line.TrimStart();
             if (trimmed.StartsWith("```", StringComparison.Ordinal) || trimmed.StartsWith("~~~", StringComparison.Ordinal))

@@ -5,3 +5,5 @@
 *.ico binary
 # Visual editor fidelity fixtures (007): line endings and BOMs are what is being tested.
 src/web/src/visual/markdown/corpus/** -text
+# Front matter fixtures (010): CRLF and BOM files are part of the test.
+tests/fixtures/front-matter/** -text

@@ -1,0 +1,856 @@
+{
+  "docusaurus-authors-objects.md": {
+    "title": "Blog post with author objects",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Blog post with author objects",
+      "description": null,
+      "tags": [
+        "blog"
+      ],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "authors",
+          "value": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "name": "name",
+                    "value": {
+                      "kind": "text",
+                      "text": "Ana Kowalska"
+                    }
+                  },
+                  {
+                    "name": "url",
+                    "value": {
+                      "kind": "text",
+                      "text": "https://example.invalid/ana",
+                      "href": "https://example.invalid/ana"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "name": "name",
+                    "value": {
+                      "kind": "text",
+                      "text": "Bo Lee"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "docusaurus-authors-strings.md": {
+    "title": "Blog post with author keys",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Blog post with author keys",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [
+        "ana",
+        "bo"
+      ],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "docusaurus-doc.md": {
+    "title": "Getting started",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Getting started",
+      "description": "Install the tools and clone the repository.",
+      "tags": [
+        "setup",
+        "install"
+      ],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "id",
+          "value": {
+            "kind": "text",
+            "text": "getting-started"
+          }
+        },
+        {
+          "name": "sidebar_label",
+          "value": {
+            "kind": "text",
+            "text": "Start here"
+          }
+        },
+        {
+          "name": "sidebar_position",
+          "value": {
+            "kind": "text",
+            "text": "1"
+          }
+        }
+      ]
+    }
+  },
+  "docusaurus-title-differs.md": {
+    "title": "Short title for the sidebar",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Short title for the sidebar",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "empty-block.md": {
+    "title": "Empty front matter",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "hugo-aliases.md": {
+    "title": "Incident response",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Incident response",
+      "description": null,
+      "tags": [
+        "incident",
+        "on-call"
+      ],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [
+        "/ops/incidents/",
+        "/runbooks/incident"
+      ],
+      "properties": []
+    }
+  },
+  "hugo-basic.md": {
+    "title": "Deploying to staging",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Deploying to staging",
+      "description": "Steps to deploy a branch to the staging cluster.",
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "date",
+          "value": {
+            "kind": "text",
+            "text": "2025-01-12T09:00:00Z"
+          }
+        },
+        {
+          "name": "draft",
+          "value": {
+            "kind": "text",
+            "text": "true"
+          }
+        },
+        {
+          "name": "weight",
+          "value": {
+            "kind": "text",
+            "text": "20"
+          }
+        }
+      ]
+    }
+  },
+  "hugo-description-and-summary.md": {
+    "title": "Monitoring",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Monitoring",
+      "description": "Dashboards and alerts.",
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "summary",
+          "value": {
+            "kind": "text",
+            "text": "Older summary that loses to description."
+          }
+        },
+        {
+          "name": "weight",
+          "value": {
+            "kind": "text",
+            "text": "5"
+          }
+        }
+      ]
+    }
+  },
+  "hugo-dots-close.md": {
+    "title": "Closed with dots",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Closed with dots",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "weight",
+          "value": {
+            "kind": "text",
+            "text": "1"
+          }
+        }
+      ]
+    }
+  },
+  "hugo-nested.md": {
+    "title": "Service catalog entry",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Service catalog entry",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "params",
+          "value": {
+            "kind": "map",
+            "entries": [
+              {
+                "name": "team",
+                "value": {
+                  "kind": "text",
+                  "text": "billing"
+                }
+              },
+              {
+                "name": "tier",
+                "value": {
+                  "kind": "text",
+                  "text": "1"
+                }
+              },
+              {
+                "name": "links",
+                "value": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "name": "repo",
+                      "value": {
+                        "kind": "text",
+                        "text": "https://example.invalid/billing",
+                        "href": "https://example.invalid/billing"
+                      }
+                    },
+                    {
+                      "name": "dashboard",
+                      "value": {
+                        "kind": "text",
+                        "text": "https://example.invalid/d/billing",
+                        "href": "https://example.invalid/d/billing"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "jekyll-bom.md": {
+    "title": "Starts with a BOM",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Starts with a BOM",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "jekyll-crlf.md": {
+    "title": "Windows line endings",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Windows line endings",
+      "description": "Saved on Windows.",
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "jekyll-no-title.md": {
+    "title": "Heading is the title",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "layout",
+          "value": {
+            "kind": "text",
+            "text": "default"
+          }
+        },
+        {
+          "name": "nav_order",
+          "value": {
+            "kind": "text",
+            "text": "3"
+          }
+        }
+      ]
+    }
+  },
+  "jekyll-page.md": {
+    "title": "About",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "About",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "layout",
+          "value": {
+            "kind": "text",
+            "text": "page"
+          }
+        },
+        {
+          "name": "permalink",
+          "value": {
+            "kind": "text",
+            "text": "/about/"
+          }
+        }
+      ]
+    }
+  },
+  "jekyll-post.md": {
+    "title": "Welcome to the team wiki",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Welcome to the team wiki",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [
+        "Ana Kowalska"
+      ],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "layout",
+          "value": {
+            "kind": "text",
+            "text": "post"
+          }
+        },
+        {
+          "name": "date",
+          "value": {
+            "kind": "text",
+            "text": "2024-03-01 10:15:00 +0100"
+          }
+        },
+        {
+          "name": "categories",
+          "value": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "text",
+                "text": "news"
+              },
+              {
+                "kind": "text",
+                "text": "onboarding"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "jekyll-tags-string.md": {
+    "title": "Release notes 4.2",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Release notes 4.2",
+      "description": null,
+      "tags": [
+        "release notes",
+        "4.2"
+      ],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "excerpt_separator",
+          "value": {
+            "kind": "text",
+            "text": "<!--more-->"
+          }
+        }
+      ]
+    }
+  },
+  "mkdocs-folded.md": {
+    "title": "A folded title",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "A folded title",
+      "description": "Folded description on two lines.",
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "mkdocs-hide.md": {
+    "title": "Hidden navigation",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "hide",
+          "value": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "text",
+                "text": "navigation"
+              },
+              {
+                "kind": "text",
+                "text": "toc"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "mkdocs-meta.md": {
+    "title": "API reference",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "API reference",
+      "description": "Endpoints of the public API.\nGenerated nightly.",
+      "tags": [],
+      "status": "deprecated",
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "no-front-matter.md": {
+    "title": "Plain page",
+    "frontMatter": null
+  },
+  "obsidian-empty-values.md": {
+    "title": "Empty values",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "reviewed",
+          "value": {
+            "kind": "text",
+            "text": ""
+          }
+        },
+        {
+          "name": "related",
+          "value": {
+            "kind": "text",
+            "text": ""
+          }
+        }
+      ]
+    }
+  },
+  "obsidian-note.md": {
+    "title": "Ops runbook",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [
+        "ops",
+        "runbook"
+      ],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [
+        "Runbook",
+        "Ops runbook"
+      ],
+      "properties": [
+        {
+          "name": "created",
+          "value": {
+            "kind": "text",
+            "text": "2025-06-01"
+          }
+        },
+        {
+          "name": "cssclasses",
+          "value": {
+            "kind": "text",
+            "text": "wide"
+          }
+        }
+      ]
+    }
+  },
+  "obsidian-tags-string.md": {
+    "title": "obsidian tags string",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [
+        "ops",
+        "runbook"
+      ],
+      "status": "draft",
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "only-comments.md": {
+    "title": "only comments",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "setext-trap.md": {
+    "title": "Setext trap",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Setext trap",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [
+        "Ana"
+      ],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "team-case-variants.md": {
+    "title": "Upper-case key",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Upper-case key",
+      "description": null,
+      "tags": [
+        "a"
+      ],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "title",
+          "value": {
+            "kind": "text",
+            "text": "lower-case key"
+          }
+        }
+      ]
+    }
+  },
+  "team-comments.md": {
+    "title": "Commented block",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Commented block",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [
+        "SRE"
+      ],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "team-non-text-title.md": {
+    "title": "Fallback heading",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": null,
+      "description": "Lists are not titles.",
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "title",
+          "value": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "text",
+                "text": "not"
+              },
+              {
+                "kind": "text",
+                "text": "text"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "team-numbers.md": {
+    "title": "2024",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "2024",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "version",
+          "value": {
+            "kind": "text",
+            "text": "007"
+          }
+        },
+        {
+          "name": "enabled",
+          "value": {
+            "kind": "text",
+            "text": "yes"
+          }
+        },
+        {
+          "name": "ratio",
+          "value": {
+            "kind": "text",
+            "text": "1.50"
+          }
+        }
+      ]
+    }
+  },
+  "team-owner.md": {
+    "title": "Release process",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Release process",
+      "description": "How we cut, test and publish a release.",
+      "tags": [
+        "release",
+        "ci"
+      ],
+      "status": "archived",
+      "owners": [
+        "Platform team"
+      ],
+      "authors": [],
+      "aliases": [],
+      "properties": []
+    }
+  },
+  "team-owners-list.md": {
+    "title": "Shared ownership",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "Shared ownership",
+      "description": null,
+      "tags": [],
+      "status": null,
+      "owners": [
+        "Platform team",
+        "Security team"
+      ],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "reviewers",
+          "value": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "text",
+                "text": "Ana"
+              },
+              {
+                "kind": "text",
+                "text": "Bo"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "team-quoted.md": {
+    "title": "It's quoted: with a colon",
+    "frontMatter": {
+      "readable": true,
+      "raw": null,
+      "title": "It's quoted: with a colon",
+      "description": "Tab\there and a \"quote\"",
+      "tags": [],
+      "status": null,
+      "owners": [],
+      "authors": [],
+      "aliases": [],
+      "properties": [
+        {
+          "name": "status",
+          "value": {
+            "kind": "text",
+            "text": "review"
+          }
+        }
+      ]
+    }
+  }
+}

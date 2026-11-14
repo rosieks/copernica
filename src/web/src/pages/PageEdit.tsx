@@ -14,6 +14,7 @@ import { DEFAULT_LIMITS, formatMegabytes } from '../editor/uploads';
 import type { VisualEditorHandle } from '../visual/VisualEditor';
 import { useImageUploads } from '../editor/useImageUploads';
 import { joinNames, shortCommit } from '../format';
+import { PageMeta } from '../frontmatter/PageMeta';
 import { useDocumentTitle } from '../layout/RouteAnnouncer';
 import { WIDE, useMediaQuery } from '../layout/useMediaQuery';
 import { pageApi, spaceRoute } from '../routes';
@@ -36,6 +37,8 @@ interface Props {
 }
 
 type EditorTab = 'write' | 'preview' | 'split';
+/** The render response (openapi `/render`): HTML, sections (009) and front matter (010). */
+type RenderResult = { html: string; sections: Schemas['Section'][]; frontMatter: Schemas['FrontMatter'] | null };
 
 /** The visual editor (007) loads on demand, so ProseMirror stays out of the reading path. */
 const VisualEditor = lazy(() => import('../visual/VisualEditor'));
@@ -75,16 +78,18 @@ function usePreview(spaceId: string, path: string, markdown: string, enabled: bo
     queryKey: ['preview', spaceId, path, debounced, attachments],
     enabled,
     // Pending images of this edit are shown from their uploads (003 R5).
-    queryFn: () => api<{ html: string }>('/api/render', { method: 'POST', json: { spaceId, path, markdown: debounced, attachments } }),
+    queryFn: () => api<RenderResult>('/api/render', { method: 'POST', json: { spaceId, path, markdown: debounced, attachments } }),
     placeholderData: (previous) => previous,
   });
 }
 
 /**
- * The server-rendered, sanitized preview. Diagrams are drawn as on the page (004 US2); unchanged
- * ones come from the renderer cache, and no status is announced on every keystroke.
+ * The server-rendered, sanitized preview, with the page metadata above it as on the page (010).
+ * Diagrams are drawn as on the page (004 US2); unchanged ones come from the renderer cache, and no
+ * status is announced on every keystroke.
  */
-function PreviewPane({ as: Element, html }: { as: 'div' | 'section'; html: string }) {
+function PreviewPane({ as: Element, preview }: { as: 'div' | 'section'; preview: RenderResult | undefined }) {
+  const html = preview?.html ?? '';
   const pane = useRef<HTMLElement>(null);
   useDiagrams(pane, html);
   // Section links scroll inside the preview and leave the editor's address alone (009).
@@ -95,13 +100,10 @@ function PreviewPane({ as: Element, html }: { as: 'div' | 'section'; html: strin
     resolveSection(pane.current, link.href)?.scrollIntoView({ block: 'start' });
   }
   return (
-    <Element
-      ref={pane as RefObject<HTMLDivElement>}
-      className="preview-pane prose"
-      aria-label="Preview"
-      onClick={onClick}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <Element className="preview-pane" aria-label="Preview">
+      <PageMeta frontMatter={preview?.frontMatter} />
+      <div ref={pane as RefObject<HTMLDivElement>} className="prose" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
+    </Element>
   );
 }
 
@@ -280,6 +282,11 @@ export function PageEdit({ space, path, isNew = false }: Props) {
     setGuardFailed(false);
     setMode(next);
     setStatus(next === 'visual' ? 'Visual mode' : 'Markdown mode');
+  }
+  /** The front matter card (010): Markdown mode with the caret where the block starts. */
+  function editInMarkdown() {
+    switchMode('markdown');
+    pendingCursor.current = 0;
   }
   const leave = () => {
     clearDraft(spaceId, path);
@@ -465,6 +472,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
             }}
             onGuardFailure={() => setGuardFailed(true)}
             onFiles={images.onFiles}
+            onEditInMarkdown={editInMarkdown}
             actions={visualActions}
           />
         </Suspense>
@@ -506,7 +514,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
             />
         </Tabs.Panel>
         <Tabs.Panel value="preview">
-          <PreviewPane as="div" html={preview.data?.html ?? ''} />
+          <PreviewPane as="div" preview={preview.data} />
         </Tabs.Panel>
         {wide && (
           <Tabs.Panel value="split" className="page-edit__split">
@@ -517,7 +525,7 @@ export function PageEdit({ space, path, isNew = false }: Props) {
               onFiles={images.onFiles}
               editorRef={editorRef}
             />
-            <PreviewPane as="section" html={preview.data?.html ?? ''} />
+            <PreviewPane as="section" preview={preview.data} />
           </Tabs.Panel>
         )}
       </Tabs.Root>

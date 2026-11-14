@@ -885,7 +885,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Sanitized HTML and the H1–H3 sections of the posted Markdown (009) */
+                /** @description Sanitized HTML, the H1–H3 sections (009) and the front matter (010) of the posted Markdown */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -894,6 +894,7 @@ export interface paths {
                         "application/json": {
                             html: string;
                             sections: components["schemas"]["Section"][];
+                            frontMatter: components["schemas"]["FrontMatter"] | null;
                         };
                     };
                 };
@@ -1301,14 +1302,52 @@ export interface components {
             /** @description Visible plain text of the heading */
             text: string;
         };
+        /** @description The page's leading YAML block (010). Values are plain text and MUST be shown as text. When readable is false, only raw is set and every other field is empty. */
+        FrontMatter: {
+            /** @description false when the block could not be read (syntax error */
+            readable: boolean;
+            /** @description The block's YAML text; set only when readable is false */
+            raw: string | null;
+            title: string | null;
+            description: string | null;
+            tags: string[];
+            /** @enum {string|null} */
+            status: "draft" | "deprecated" | "archived" | null;
+            owners: string[];
+            authors: string[];
+            aliases: string[];
+            properties: components["schemas"]["FrontMatterProperty"][];
+        };
+        FrontMatterProperty: {
+            name: string;
+            value: components["schemas"]["FrontMatterValue"];
+        };
+        FrontMatterValue: {
+            /** @constant */
+            kind: "text";
+            text: string;
+            /** @description Set when the whole value is an http */
+            href?: string;
+        } | {
+            /** @constant */
+            kind: "list";
+            items: components["schemas"]["FrontMatterValue"][];
+        } | {
+            /** @constant */
+            kind: "map";
+            entries: components["schemas"]["FrontMatterProperty"][];
+        };
         Page: {
             spaceId: string;
             path: string;
+            /** @description The front matter title (010) */
             title: string;
-            /** @description Sanitized HTML; element ids are prefixed with user-content- */
+            /** @description Sanitized HTML without the front matter block; element ids are prefixed with user-content- */
             html: string;
             /** @description H1–H3 headings in document order; empty when tooLarge (009) */
             sections: components["schemas"]["Section"][];
+            /** @description The page's front matter (010); null when the file has none or tooLarge is true */
+            frontMatter: components["schemas"]["FrontMatter"] | null;
             source?: string | null;
             version: components["schemas"]["PageVersionRef"];
             isCurrent?: boolean;

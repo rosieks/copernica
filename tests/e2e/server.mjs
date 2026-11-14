@@ -38,6 +38,14 @@ function createRemote(name, files) {
   return { bare, clone };
 }
 
+// A page with front matter and no level-1 heading in its body (010 quickstart.md).
+function releasePage(status) {
+  return '---\ntitle: Release process\ndescription: How we cut, test and publish a release.\n' +
+    `tags: [release, ci]\nstatus: ${status}\nowner: Platform team\nweight: 20\nreviewed: 2026-09-01\n` +
+    'reviewers:\n  - Ana\n  - Bo\nlinks:\n  repo: https://example.invalid/release\n  dashboard: https://example.invalid/d/release\n---\n\n' +
+    'Releases are cut every second Tuesday.\n\n## Checklist\n\nRun the pipeline.\n';
+}
+
 // A long page with H1–H4, duplicates, Polish text, punctuation, a footnote, a table of
 // contents of section links, and an image and a diagram above "Late layout" (009).
 function sectionsPage(extra) {
@@ -94,6 +102,17 @@ const handbook = createRemote('handbook', {
     '- [Late layout](sections.md#late-layout)\n' +
     '- [Azure DevOps form](sections.md#interface-version-1.0)\n' +
     '- [Gone](sections.md#gone)\n',
+  // 010 fixtures (specs/010-page-front-matter/quickstart.md, Prerequisites). release-process.md
+  // starts as a draft; a second commit below makes it deprecated, for the earlier-version check.
+  'ops/release-process.md': releasePage('draft'),
+  'ops/broken-meta.md': '---\ntitle: First\ntitle: Second\n---\n\n# Broken meta\n\nThe block above has a duplicate key.\n',
+  'ops/hostile-meta.md': readFileSync(join(here, '../fixtures/front-matter/hostile/script-values.md'), 'utf8'),
+  // One page to rename per browser project: the server and its repositories are shared.
+  ...Object.fromEntries(['chromium', 'firefox', 'webkit'].map((browser) => [
+    `ops/rename-${browser}.md`,
+    `---\ntitle: Rename ${browser}\nowner: Ana\n---\n\n# Body heading\n\nThis page is renamed by the e2e tests.\n`,
+  ])),
+  'ops/edit-meta.md': '---\ntitle: Edit me\nstatus: deprecated\ntags: [edit]\n---\n\nFirst paragraph.\n\nSecond paragraph.\n',
   'visuals/ado.md':'# Azure DevOps diagram\n\n::: mermaid\nflowchart LR\n  A[Cart] --> B[Payment]\n:::\n',
   'visuals/broken.md': '# Broken\n\n```mermaid\nflowchart LR\n  A --> --> B ((\n```\n\n```mermaid\nflowchart LR\n  C --> D\n```\n\nThe rest of the page is normal.\n',
   'visuals/huge.md': '# Huge diagram\n\n```mermaid\nflowchart TD\n' +
@@ -124,6 +143,10 @@ for (const [author, text] of [
 writeFileSync(join(handbook.clone, 'guides/sections.md'), sectionsPage('## Appendix\n\nAdded later.\n\n'));
 git(handbook.clone, 'add', '-A');
 git(handbook.clone, '-c', 'user.name=Ada', '-c', 'user.email=ada@example.test', 'commit', '-m', 'Add appendix');
+// 010: the release process page was a draft in its previous version.
+writeFileSync(join(handbook.clone, 'ops/release-process.md'), releasePage('deprecated'));
+git(handbook.clone, 'add', '-A');
+git(handbook.clone, '-c', 'user.name=Ada', '-c', 'user.email=ada@example.test', 'commit', '-m', 'Deprecate the release process');
 git(handbook.clone, 'push', handbook.bare, 'main');
 
 const service = createRemote('service', {

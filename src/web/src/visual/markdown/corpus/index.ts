@@ -12,6 +12,14 @@ export interface CorpusFile {
 const glob = (files: Record<string, unknown>) => Object.entries(files).map(([name, text]) => ({ name, text: text as string }));
 
 const fixtures = glob(import.meta.glob(['./**/*.md', '!./guard/**'], { query: '?raw', import: 'default', eager: true }));
+// Front matter in the styles of Jekyll, Hugo, Docusaurus, MkDocs and Obsidian (010 SC-003).
+const frontMatter = glob(
+  import.meta.glob('../../../../../../tests/fixtures/front-matter/**/*.md', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+);
 const repository = glob(
   import.meta.glob('../../../../../../specs/**/*.md', {
     query: '?raw',
@@ -28,7 +36,7 @@ export function commonMarkExamples(): CorpusFile[] {
 }
 
 export function corpusFiles(): CorpusFile[] {
-  return [...commonMarkExamples(), ...fixtures, ...repository];
+  return [...commonMarkExamples(), ...fixtures, ...frontMatter, ...repository];
 }
 
 export function guardFiles(): CorpusFile[] {

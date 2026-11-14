@@ -370,17 +370,19 @@ paths:
                   description: Pending images of the edit, shown from their upload URL (003)
       responses:
         '200':
-          description: Sanitized HTML and the H1–H3 sections of the posted Markdown (009)
+          description: Sanitized HTML, the H1–H3 sections (009) and the front matter (010) of the posted Markdown
           content:
             application/json:
               schema:
                 type: object
-                required: [html, sections]
+                required: [html, sections, frontMatter]
                 properties:
                   html: { type: string }
                   sections:
                     type: array
                     items: { $ref: '#/components/schemas/Section' }
+                  frontMatter:
+                    oneOf: [ { $ref: '#/components/schemas/FrontMatter' }, { type: 'null' } ]
 
   /spaces/{spaceId}/discussions:
     parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
@@ -609,18 +611,65 @@ components:
         id: { type: string, description: Section address (URL fragment) without the user-content- prefix }
         text: { type: string, description: Visible plain text of the heading }
 
+    FrontMatter:
+      type: object
+      description: >
+        The page's leading YAML block (010). Values are plain text and MUST be shown as text.
+        When readable is false, only raw is set and every other field is empty.
+      required: [readable, raw, title, description, tags, status, owners, authors, aliases, properties]
+      properties:
+        readable: { type: boolean, description: false when the block could not be read (syntax error, limits, duplicate keys) }
+        raw: { type: [string, 'null'], description: The block's YAML text; set only when readable is false }
+        title: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        tags: { type: array, items: { type: string } }
+        status: { type: [string, 'null'], enum: [draft, deprecated, archived, null] }
+        owners: { type: array, items: { type: string } }
+        authors: { type: array, items: { type: string } }
+        aliases: { type: array, items: { type: string } }
+        properties: { type: array, items: { $ref: '#/components/schemas/FrontMatterProperty' } }
+
+    FrontMatterProperty:
+      type: object
+      required: [name, value]
+      properties:
+        name: { type: string }
+        value: { $ref: '#/components/schemas/FrontMatterValue' }
+
+    FrontMatterValue:
+      oneOf:
+        - type: object
+          required: [kind, text]
+          properties:
+            kind: { type: string, const: text }
+            text: { type: string }
+            href: { type: string, description: Set when the whole value is an http, https or mailto address; the value is then shown as a link }
+        - type: object
+          required: [kind, items]
+          properties:
+            kind: { type: string, const: list }
+            items: { type: array, items: { $ref: '#/components/schemas/FrontMatterValue' } }
+        - type: object
+          required: [kind, entries]
+          properties:
+            kind: { type: string, const: map }
+            entries: { type: array, items: { $ref: '#/components/schemas/FrontMatterProperty' } }
+
     Page:
       type: object
-      required: [spaceId, path, title, html, sections, version]
+      required: [spaceId, path, title, html, sections, frontMatter, version]
       properties:
         spaceId: { type: string }
         path: { type: string }
-        title: { type: string }
-        html: { type: string, description: Sanitized HTML; element ids are prefixed with user-content- }
+        title: { type: string, description: The front matter title (010), else the first level-1 heading, else the file name }
+        html: { type: string, description: Sanitized HTML without the front matter block; element ids are prefixed with user-content- }
         sections:
           type: array
           description: H1–H3 headings in document order; empty when tooLarge (009)
           items: { $ref: '#/components/schemas/Section' }
+        frontMatter:
+          description: The page's front matter (010); null when the file has none or tooLarge is true
+          oneOf: [ { $ref: '#/components/schemas/FrontMatter' }, { type: 'null' } ]
         source: { type: [string, 'null'] }
         version: { $ref: '#/components/schemas/PageVersionRef' }
         isCurrent: { type: boolean }

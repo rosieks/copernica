@@ -17,7 +17,7 @@ who do not use Helm.
 - Extension points for unforeseen needs: image registry and pull secrets, extra
   labels/annotations, volumes, sidecars and manifests, and a free-form application-settings
   section.
-- Validation at install time (also used by 010).
+- Validation at install time (also used by 011).
 - Safe defaults: Pod Security Standard `restricted`, a single replica (no autoscaling),
   persistent volume, ingress off by default.
 
@@ -34,7 +34,21 @@ Specified in [specs/009-heading-links](../specs/009-heading-links/spec.md).
 Left for later: Azure DevOps `[[_TOC_]]` as a generated table of contents, and updating
 links when a heading is renamed.
 
-### 010 – Admin onboarding (setup CLI)
+### 010 – Page front matter (implemented)
+
+Specified in [specs/010-page-front-matter](../specs/010-page-front-matter/spec.md).
+
+- The leading YAML block of a page is no longer rendered as text; it is parsed on the
+  server with bounded resources (YamlDotNet, event parser only).
+- `title` names the page; `description`, `tags`, `owner`/`authors` and a `status` banner
+  are shown above the content; other fields are under a collapsed Properties section.
+- Renaming a page rewrites only its `title` value; both editors keep the block byte for
+  byte, and the visual editor shows it as a read-only card.
+
+Left for later: browsing pages by tag, page order from `order`/`weight`/`sidebar_position`,
+using `aliases` for links, and TOML (`+++`) front matter.
+
+### 011 – Admin onboarding (setup CLI)
 
 Subcommands of the existing executable (like `hash-password`), not a separate tool, to keep
 one artifact per platform.

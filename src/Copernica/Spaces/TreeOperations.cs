@@ -146,7 +146,9 @@ public sealed class TreeOperations(RepositoryWriter writer, LinkRewriter links)
                 updated = links.Rewrite(text.Value, page.Path, newPath, space.Id, map);
                 if (!isFolder && operation.Retitle is { Length: > 0 } title)
                 {
-                    updated = PageTitle.ReplaceFirstHeading(updated ?? text.Value, title) ?? updated;
+                    // A front matter title names the page (010); otherwise the first heading does.
+                    var current = updated ?? text.Value;
+                    updated = FrontMatterTitle.Replace(current, title) ?? PageTitle.ReplaceFirstHeading(current, title) ?? updated;
                 }
             }
             else

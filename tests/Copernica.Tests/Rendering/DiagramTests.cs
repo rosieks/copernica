@@ -9,7 +9,7 @@ public sealed class DiagramTests
     private static readonly HashSet<string> Pages = ["index.md", "guides/setup.md", "guides/x.md"];
 
     private static string Render(string markdown, bool diagrams = true) =>
-        new MarkdownRenderer().Render(markdown, new WikiLinkRewriter("handbook", "guides/setup.md", "abc123", Pages.Contains), diagrams);
+        new MarkdownRenderer().RenderWithSections(markdown, new WikiLinkRewriter("handbook", "guides/setup.md", "abc123", Pages.Contains), diagrams).Html;
 
     private static string Fence(string source) => $"```mermaid\n{source}\n```";
 
