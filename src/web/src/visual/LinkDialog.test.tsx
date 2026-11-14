@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EditorState, TextSelection } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import { filterPages, flattenPages, MAX_RESULTS, relativeLink } from './LinkDialog';
+import { filterPages, filterSections, flattenPages, MAX_RESULTS, relativeLink, sectionLink } from './LinkDialog';
 import { linkAt, removeLinkCommand, setLinkCommand } from './links';
 import { parse, serialize } from './markdown';
 
@@ -51,6 +51,29 @@ describe('relativeLink', () => {
     ['index.md', 'guides/my page.md', 'guides/my%20page.md'],
   ])('from %s to %s is %s', (from, to, expected) => {
     expect(relativeLink(from, to)).toBe(expected);
+  });
+});
+
+describe('section links (009 US3)', () => {
+  const sections = [
+    { level: 1, id: 'sections', text: 'Sections' },
+    { level: 2, id: 'interface-version-10', text: 'Interface Version 1.0' },
+    { level: 3, id: 'zażółć', text: 'Zażółć' },
+  ];
+
+  it('links another page, optionally at a section with an encoded fragment', () => {
+    expect(sectionLink('guides/setup.md', 'guides/sections.md', null)).toBe('sections.md');
+    expect(sectionLink('index.md', 'guides/sections.md', sections[1]!)).toBe('guides/sections.md#interface-version-10');
+    expect(sectionLink('guides/a.md', 'guides/sections.md', sections[2]!)).toBe('sections.md#za%C5%BC%C3%B3%C5%82%C4%87');
+  });
+
+  it('links a section of the page being edited by its fragment only', () => {
+    expect(sectionLink('guides/sections.md', 'guides/sections.md', sections[1]!)).toBe('#interface-version-10');
+  });
+
+  it('filters sections by text, case-insensitively', () => {
+    expect(filterSections(sections, 'VERSION').map((s) => s.id)).toEqual(['interface-version-10']);
+    expect(filterSections(sections, '')).toHaveLength(3);
   });
 });
 

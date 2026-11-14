@@ -37,4 +37,13 @@ test.describe('002 — reduced motion (V27)', () => {
     await expect(toast).toBeVisible();
     expect(await motion(toast)).toBe(0);
   });
+
+  test('a section opened by its link is marked without animation (009)', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/s/handbook/guides/sections.md#setup-1');
+    const target = page.locator('[id="user-content-setup-1"].section-target');
+    await expect(target).toBeVisible();
+    expect(await motion(target)).toBe(0);
+    expect(await target.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
+  });
 });

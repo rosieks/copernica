@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router';
 import { ChatBubbleIcon, CheckCircledIcon, DotsHorizontalIcon, ResetIcon } from '@radix-ui/react-icons';
 import { api, ApiError, type Schemas } from '../api/client';
 import { useMe } from '../App';
 import { absoluteTime, relativeTime } from '../format';
 import { AlertDialog, Avatar, Badge, Button, Callout, Collapsible, EmptyState, Field, IconButton, Menu, ToggleGroup, Tooltip } from '../ui';
+import { routeContentLinkClick } from '../sections/contentLinks';
 import { MarginLayout, type MarginItem } from './MarginLayout';
 import type { TextAnchorInput } from './textAnchor';
 import { useDiscussions, useRefreshDiscussions, type Discussion, type DiscussionFilter } from './useDiscussions';
@@ -330,6 +332,8 @@ function CommentView({
   focusAfterDelete: () => HTMLElement | null;
 }) {
   const me = useMe();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [text, setText] = useState(comment.body ?? '');
@@ -417,7 +421,12 @@ function CommentView({
         </form>
       ) : (
         // Rendered and sanitized by the server.
-        <div className="comment__body prose" dangerouslySetInnerHTML={{ __html: comment.html ?? '' }} />
+        // Section and page links are routed in the app; #sections resolve in the page (009).
+        <div
+          className="comment__body prose"
+          onClick={(event) => routeContentLinkClick(event, navigate, location)}
+          dangerouslySetInnerHTML={{ __html: comment.html ?? '' }}
+        />
       )}
       <AlertDialog
         open={deleting}

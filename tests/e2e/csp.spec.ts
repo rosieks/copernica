@@ -22,7 +22,8 @@ test.describe('002 — strict CSP with the style nonce (V26)', () => {
     const violations = await collectCspViolations(page);
     await signIn(page);
 
-    for (const url of ['/', '/profile', '/s/handbook/index.md', '/s/handbook/-/history/guides/history.md', '/s/handbook/-/edit/guides/setup.md']) {
+    // 009: a section link (highlight, copy-link buttons) is part of the page screen.
+    for (const url of ['/', '/profile', '/s/handbook/index.md', '/s/handbook/guides/sections.md#setup-1', '/s/handbook/-/history/guides/history.md', '/s/handbook/-/edit/guides/setup.md']) {
       await page.goto(url);
       await expect(page.locator('#main h1').first()).toBeVisible();
     }

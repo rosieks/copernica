@@ -285,6 +285,9 @@ test.describe.serial('007 — visual page editor', () => {
     await dialog.getByRole('combobox', { name: 'Find a page' }).fill('target');
     await expect(dialog.getByRole('option', { name: /Target page/ })).toBeVisible();
     await page.keyboard.press('Enter');
+    // The section step (009) defaults to the whole page.
+    await expect(dialog.getByRole('option', { name: 'Whole page' })).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Enter');
     await expect(dialog).toHaveCount(0);
     await expect(editor(page).getByRole('link', { name: 'Target page' })).toBeVisible();
     await save(page, 'Link the target page');
@@ -292,6 +295,29 @@ test.describe.serial('007 — visual page editor', () => {
     expect(rawFile('index.md')).toContain('Pages for the visual editor tests. See [Target page](guides/target-page.md)\n');
     await page.getByRole('article').getByRole('link', { name: 'Target page' }).click();
     await expect(page).toHaveURL(/\/s\/visual\/guides\/target-page\.md$/);
+  });
+
+  test('W19: Ctrl+K links to a section of another page (009 US3)', async ({ page }) => {
+    await signIn(page, 'alice', { editorMode: 'visual' });
+    await openEditor(page, 'guides/target-page.md');
+    await caretAfter(page, 'Linked from other pages.');
+    await page.keyboard.type(' See ');
+    await page.keyboard.press('ControlOrMeta+k');
+    const dialog = page.getByRole('dialog', { name: 'Insert link' });
+    await dialog.getByRole('combobox', { name: 'Find a page' }).fill('sections');
+    await expect(dialog.getByRole('option', { name: /Sections page/ })).toBeVisible();
+    await page.keyboard.press('Enter');
+    const sections = dialog.getByRole('listbox', { name: 'Sections' });
+    await expect(sections.getByRole('option', { name: /^Interface Version 1\.0\s*, heading level 2$/ })).toBeVisible();
+    await dialog.getByRole('combobox', { name: 'Section (optional)' }).fill('interface');
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    await save(page, 'Link a section');
+
+    expect(rawFile('guides/target-page.md')).toContain('See [Interface Version 1.0](sections.md#interface-version-10)');
+    await page.getByRole('article').first().getByRole('link', { name: 'Interface Version 1.0' }).click();
+    await expect(page).toHaveURL(/\/s\/visual\/guides\/sections\.md#interface-version-10$/);
+    await expect(page.locator('#user-content-interface-version-10')).toBeFocused();
   });
 
   test('W14: content pasted from Word keeps its structure and nothing else', async ({ page, browserName }) => {
@@ -335,6 +361,9 @@ test.describe.serial('007 — visual page editor', () => {
     await page.keyboard.type('Keyboard **only** ');
     await page.keyboard.press('ControlOrMeta+k');
     await page.keyboard.type('target');
+    await page.keyboard.press('Enter');
+    // Section step (009): "Whole page" is selected.
+    await expect(page.getByRole('option', { name: 'Whole page' })).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog', { name: 'Insert link' })).toHaveCount(0);
     await expect(editor(page)).toBeFocused();

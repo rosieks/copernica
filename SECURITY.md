@@ -92,6 +92,9 @@ plain text and stay usable with ordinary git tooling.
   - Scripts, event handlers, inline styles, frames, forms and `javascript:`/`data:` links
     are removed.
   - Comments go through the same pipeline.
+  - Element ids in user content (heading anchors, footnotes, ids in raw HTML) are prefixed
+    with `user-content-`, so a page cannot take over the application's own element ids or
+    clobber DOM globals. Links to sections keep their plain `#fragment`.
 - **Response headers:**
   - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`.
     `style-src-attr` is needed by the code editor and by positioned menus and popovers.

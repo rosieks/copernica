@@ -1,3 +1,4 @@
+using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using Ganss.Xss;
 
@@ -25,6 +26,13 @@ public static class HtmlSanitizerFactory
         "data-diagram", "data-diagram-type", "data-diagram-name", "data-diagram-description", "data-diagram-too-large",
     ];
 
+    /// <summary>
+    /// Prefix of every element id in user content (009 research R2), so pages cannot take over
+    /// the application's own ids (<c>#main</c>) or clobber DOM globals. Fragments in links stay
+    /// unprefixed; the browser adds the prefix when it resolves them.
+    /// </summary>
+    public const string ContentIdPrefix = "user-content-";
+
     public static HtmlSanitizer Create()
     {
         var sanitizer = new HtmlSanitizer(new HtmlSanitizerOptions
@@ -43,6 +51,12 @@ public static class HtmlSanitizerFactory
         // Only disabled checkboxes survive (Markdown task lists).
         sanitizer.PostProcessNode += (_, e) =>
         {
+            if (e.Node is IElement element && element.GetAttribute("id") is { Length: > 0 } id
+                && !id.StartsWith(ContentIdPrefix, StringComparison.Ordinal))
+            {
+                element.SetAttribute("id", ContentIdPrefix + id);
+            }
+
             if (e.Node is IHtmlInputElement input)
             {
                 if (!string.Equals(input.Type, "checkbox", StringComparison.OrdinalIgnoreCase))

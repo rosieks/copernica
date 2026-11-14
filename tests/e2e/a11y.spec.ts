@@ -108,11 +108,35 @@ const VISUAL: Screen[] = [
       await p.getByRole('group', { name: 'Link' }).waitFor();
     },
   },
+  {
+    // 009: the section step of the link dialog.
+    name: 'Visual editor link dialog sections',
+    url: '/s/visual/-/edit/index.md',
+    editorMode: 'visual',
+    widths: [viewports.wide.width, viewports.narrow.width],
+    prepare: async (p) => {
+      await caretAtEnd(p);
+      await p.keyboard.press('ControlOrMeta+k');
+      const dialog = p.getByRole('dialog', { name: 'Insert link' });
+      await dialog.getByRole('combobox', { name: 'Find a page' }).fill('sections');
+      await p.keyboard.press('Enter');
+      await dialog.getByRole('option', { name: /Overview/ }).waitFor();
+    },
+  },
 ];
 
 const SCREENS: Screen[] = [
   { name: 'S2 space list', url: '/' },
   { name: 'S3 page', url: '/s/handbook/index.md' },
+  {
+    // 009: copy-link buttons shown on hover and a section opened by its link (highlighted).
+    name: 'S3 page sections',
+    url: '/s/handbook/guides/sections.md#setup-1',
+    prepare: async (p) => {
+      await p.locator('[id="user-content-setup-1"].section-target').waitFor();
+      await p.getByRole('heading', { name: 'Zażółć gęślą jaźń' }).hover();
+    },
+  },
   { name: 'S3 old version', url: '/s/handbook/-/history/guides/history.md', prepare: (p) => p.getByRole('link', { name: /, version of / }).first().click() },
   { name: 'S4 editor', url: '/s/handbook/-/edit/guides/setup.md' },
   { name: 'S5 history', url: '/s/handbook/-/history/guides/history.md' },

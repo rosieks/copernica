@@ -16,6 +16,7 @@ public sealed record PageDto(
     string Path,
     string Title,
     string Html,
+    IReadOnlyList<Section> Sections,
     string? Source,
     PageVersionRef Version,
     bool IsCurrent,
@@ -75,14 +76,15 @@ public sealed class PageService(
 
         var content = Encoding.UTF8.GetString(blob.Content);
         var tooLarge = blob.Content.LongLength > options.Value.MaxRenderBytes;
-        var html = tooLarge ? "" : Render(space, path, commitId, blob.Id, content);
+        var rendered = tooLarge ? new RenderedMarkdown("", []) : Render(space, path, commitId, blob.Id, content);
         var title = tooLarge ? PageTitle.FromFileName(path) : PageTitle.Resolve(content, path);
 
         return new PageLookup(PageLookupStatus.Found, new PageDto(
             space.Id,
             path,
             title,
-            html,
+            rendered.Html,
+            rendered.Sections,
             includeSource && !tooLarge ? content : null,
             new PageVersionRef(commitId, blob.Id),
             IsCurrent: commitId == head,
@@ -106,19 +108,19 @@ public sealed class PageService(
     }
 
     /// <summary>Renders arbitrary Markdown as if it were the page at <paramref name="path"/> (editor preview).</summary>
-    public string RenderPreview(Space space, string path, string markdown, IReadOnlyDictionary<string, string>? pendingImages = null)
+    public RenderedMarkdown RenderPreview(Space space, string path, string markdown, IReadOnlyDictionary<string, string>? pendingImages = null)
     {
         var head = GetHead(space) ?? "";
         var pages = head.Length == 0 ? new HashSet<string>() : trees.GetPagePaths(space, head);
-        return renderer.Render(markdown, new WikiLinkRewriter(space.Id, path, head, pages.Contains, pendingImages), diagrams: true);
+        return renderer.RenderWithSections(markdown, new WikiLinkRewriter(space.Id, path, head, pages.Contains, pendingImages), diagrams: true);
     }
 
-    private string Render(Space space, string path, string commitId, string blobId, string content) =>
+    private RenderedMarkdown Render(Space space, string path, string commitId, string blobId, string content) =>
         cache.GetOrCreate((nameof(PageService), space.Id, commitId, blobId, path), entry =>
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(10);
             var pages = trees.GetPagePaths(space, commitId);
-            return renderer.Render(content, new WikiLinkRewriter(space.Id, path, commitId, pages.Contains), diagrams: true);
+            return renderer.RenderWithSections(content, new WikiLinkRewriter(space.Id, path, commitId, pages.Contains), diagrams: true);
         })!;
 
     /// <summary>Only full hexadecimal object ids are accepted as versions (no revision expressions).</summary>

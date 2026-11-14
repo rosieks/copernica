@@ -20,6 +20,11 @@
   transform: none;
 }
 
+/* The skip link focuses the main region; it is a landmark, not a control, so no ring. */
+.main:focus-visible {
+  box-shadow: none;
+}
+
 .header {
   position: sticky;
   top: 0;

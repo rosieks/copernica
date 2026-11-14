@@ -38,7 +38,29 @@ function createRemote(name, files) {
   return { bare, clone };
 }
 
+// A long page with H1–H4, duplicates, Polish text, punctuation, a footnote, a table of
+// contents of section links, and an image and a diagram above "Late layout" (009).
+function sectionsPage(extra) {
+  const filler = (n) => Array.from({ length: n }, (_, i) => `Paragraph ${i + 1} of filler text that keeps sections apart.`).join('\n\n');
+  return '# Sections\n\n' +
+    'Contents: [Setup](#setup), [Second setup](#setup-1), [Polish](#za%C5%BC%C3%B3%C5%82%C4%87-g%C4%99%C5%9Bl%C4%85-ja%C5%BA%C5%84).\n\n' +
+    'A claim with a footnote.[^note]\n\n' + filler(12) + '\n\n' +
+    '## Setup\n\nFirst setup.\n\n' + filler(8) + '\n\n' +
+    '## Setup\n\nSecond setup.\n\n' + filler(8) + '\n\n' +
+    '## Setup\n\nThird setup.\n\n' + filler(8) + '\n\n' +
+    '## Zażółć gęślą jaźń\n\n' + filler(8) + '\n\n' +
+    '## Interface Version 1.0\n\n' + filler(8) + '\n\n' +
+    '## Design & Process\n\n' + filler(8) + '\n\n' + extra +
+    '### main\n\n' + filler(8) + '\n\n' +
+    '![Tall picture](../img/tall.svg)\n\n' +
+    '```mermaid\nflowchart TD\n  A[One] --> B[Two] --> C[Three] --> D[Four]\n```\n\n' +
+    '## Late layout\n\n' + filler(8) + '\n\n' +
+    '#### Detail\n\n' + filler(20) + '\n\n' +
+    '[^note]: The footnote text.\n';
+}
+
 const handbook = createRemote('handbook', {
+  'img/tall.svg': '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="900"><rect width="200" height="900" fill="#1f5fbf"/></svg>',
   'index.md': '# Team Handbook\n\nWelcome. See [setup](guides/setup.md) and [the API](wiki:service/api.md).\n\n' +
     'This sentence is about onboarding new colleagues.\n\nAnother paragraph about the release process.\n',
   'guides/setup.md': '# Setup\n\nInstall the tools.\n\n![diagram](../img/diagram.svg)\n',
@@ -66,7 +88,13 @@ const handbook = createRemote('handbook', {
     'pie title Pets\n  "Dogs" : 3\n  "Cats" : 2',
     'gitGraph\n  commit\n  branch feature\n  commit\n  checkout main\n  merge feature',
   ].map((source) => '```mermaid\n' + source + '\n```\n').join('\n') + '\nThis sentence follows the diagrams.\n',
-  'visuals/ado.md': '# Azure DevOps diagram\n\n::: mermaid\nflowchart LR\n  A[Cart] --> B[Payment]\n:::\n',
+  // 009 fixtures (specs/009-heading-links/quickstart.md, Prerequisites).
+  'guides/sections.md': sectionsPage(''),
+  'guides/section-links.md': '# Section links\n\n' +
+    '- [Late layout](sections.md#late-layout)\n' +
+    '- [Azure DevOps form](sections.md#interface-version-1.0)\n' +
+    '- [Gone](sections.md#gone)\n',
+  'visuals/ado.md':'# Azure DevOps diagram\n\n::: mermaid\nflowchart LR\n  A[Cart] --> B[Payment]\n:::\n',
   'visuals/broken.md': '# Broken\n\n```mermaid\nflowchart LR\n  A --> --> B ((\n```\n\n```mermaid\nflowchart LR\n  C --> D\n```\n\nThe rest of the page is normal.\n',
   'visuals/huge.md': '# Huge diagram\n\n```mermaid\nflowchart TD\n' +
     Array.from({ length: 1300 }, (_, i) => `  N${i}[Node ${i}] --> N${i + 1}\n`).join('') + '```\n',
@@ -92,6 +120,10 @@ for (const [author, text] of [
   git(handbook.clone, 'add', '-A');
   git(handbook.clone, '-c', `user.name=${author}`, '-c', `user.email=${author.toLowerCase()}@example.test`, 'commit', '-m', `${author}: ${text}`);
 }
+// 009: a second version of the sections page, so earlier versions differ in their headings.
+writeFileSync(join(handbook.clone, 'guides/sections.md'), sectionsPage('## Appendix\n\nAdded later.\n\n'));
+git(handbook.clone, 'add', '-A');
+git(handbook.clone, '-c', 'user.name=Ada', '-c', 'user.email=ada@example.test', 'commit', '-m', 'Add appendix');
 git(handbook.clone, 'push', handbook.bare, 'main');
 
 const service = createRemote('service', {
@@ -129,6 +161,8 @@ const visual = createRemote('visual', {
   ...Object.fromEntries(readdirSync(corpus).map((name) => [name, readFileSync(join(corpus, name))])),
   'index.md': '# Visual Lab\n\nPages for the visual editor tests.\n',
   'guides/target-page.md': '# Target page\n\nLinked from other pages.\n',
+  // 009: a page with sections for the link dialog's section picker.
+  'guides/sections.md': '# Sections page\n\n## Overview\n\nText.\n\n## Interface Version 1.0\n\nDetails.\n',
   'plain.md': '# Plain page\n\nFirst paragraph of a plain page.\n\nSecond paragraph.\n',
   'large.md': `# Large page\n\n${largeSections}`,
 });

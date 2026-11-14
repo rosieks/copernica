@@ -370,13 +370,17 @@ paths:
                   description: Pending images of the edit, shown from their upload URL (003)
       responses:
         '200':
-          description: Sanitized HTML
+          description: Sanitized HTML and the H1–H3 sections of the posted Markdown (009)
           content:
             application/json:
               schema:
                 type: object
+                required: [html, sections]
                 properties:
                   html: { type: string }
+                  sections:
+                    type: array
+                    items: { $ref: '#/components/schemas/Section' }
 
   /spaces/{spaceId}/discussions:
     parameters: [ { $ref: '#/components/parameters/SpaceId' } ]
@@ -596,14 +600,27 @@ components:
         commitId: { type: string, description: Branch head when the page was loaded }
         blobId: { type: [string, 'null'], description: File blob at that commit }
 
+    Section:
+      type: object
+      description: A heading a reader can link to (009). Rendered elements carry id="user-content-{id}".
+      required: [level, id, text]
+      properties:
+        level: { type: integer, minimum: 1, maximum: 3 }
+        id: { type: string, description: Section address (URL fragment) without the user-content- prefix }
+        text: { type: string, description: Visible plain text of the heading }
+
     Page:
       type: object
-      required: [spaceId, path, title, html, version]
+      required: [spaceId, path, title, html, sections, version]
       properties:
         spaceId: { type: string }
         path: { type: string }
         title: { type: string }
-        html: { type: string, description: Sanitized HTML }
+        html: { type: string, description: Sanitized HTML; element ids are prefixed with user-content- }
+        sections:
+          type: array
+          description: H1–H3 headings in document order; empty when tooLarge (009)
+          items: { $ref: '#/components/schemas/Section' }
         source: { type: [string, 'null'] }
         version: { $ref: '#/components/schemas/PageVersionRef' }
         isCurrent: { type: boolean }
