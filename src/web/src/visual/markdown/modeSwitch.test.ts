@@ -36,7 +36,8 @@ describe('mode switch keeps Markdown-mode text (M1)', () => {
     }
     expect(checked).toBeGreaterThan(400);
     expect(failures).toEqual([]);
-  });
+    // Whole-corpus checks get more time than the 5 s default, like the fidelity tests.
+  }, 30_000);
 });
 
 describe('cursor mapping (M2)', () => {

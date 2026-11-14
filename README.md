@@ -123,6 +123,14 @@ every value, the extension points and upgrade behavior.
   in a page, scrolls to the heading, also in earlier versions and after Back or Forward.
   Section links copied from an Azure DevOps Wiki work too. In the visual editor's link
   dialog, choose a page and then, optionally, one of its sections.
+- **Front matter:** a YAML block between `---` lines at the top of a page (as written by
+  Jekyll, Hugo, Docusaurus, MkDocs or Obsidian) is not shown as text. Instead:
+  - `title` names the page in the tree, the browser tab and the page picker; renaming the
+    page updates it;
+  - `description`, `tags`, `owner` and `authors` are shown above the content, and
+    `status: draft`, `deprecated` or `archived` adds a banner;
+  - every other field is listed under a collapsed **Properties**;
+  - a block that cannot be read is reported, with its text available.
 - **Organizing pages:** every page and folder in the tree has an actions menu (hover the row
   and choose **⋯**, right-click it, or press `Shift`+`F10`):
   - **New page here…** and **New folder…** (a folder is created with its first page,
@@ -146,8 +154,9 @@ every value, the extension points and upgrade behavior.
     heading, list, table, diagram, image or link to a page, or type Markdown such as `## `
     or `- ` at the start of a line.
   - **Markdown** is the text editor with **Write**, **Preview** and **Split** views.
-  - Parts of a page the visual editor cannot edit, such as HTML, `[[_TOC_]]` or front matter,
-    are shown as labelled boxes. Edit them in Markdown mode.
+  - Parts of a page the visual editor cannot edit, such as HTML or `[[_TOC_]]`, are shown
+    as labelled boxes. Front matter is shown as a card with its fields. Edit them in
+    Markdown mode.
   - **Saving never rewrites what you did not change.** Unchanged parts of the file are
     written back exactly as they were, so git history shows only your edit. **Review
     changes** shows the difference before saving, and saving without changes does nothing.

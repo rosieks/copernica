@@ -8,8 +8,8 @@ namespace Copernica.Rendering;
 /// <summary>A heading a reader can link to (009 data-model.md). <see cref="Id"/> has no prefix.</summary>
 public sealed record Section(int Level, string Id, string Text);
 
-/// <summary>Rendered, sanitized HTML with the sections of the same document.</summary>
-public sealed record RenderedMarkdown(string Html, IReadOnlyList<Section> Sections);
+/// <summary>Rendered, sanitized HTML with the sections and the front matter (010) of the same document.</summary>
+public sealed record RenderedMarkdown(string Html, IReadOnlyList<Section> Sections, FrontMatter? FrontMatter = null);
 
 /// <summary>
 /// Lists the H1–H3 headings of a parsed document with the ids Markdig's auto identifiers gave

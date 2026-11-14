@@ -4,6 +4,7 @@
     <PackageVersion Include="LibGit2Sharp" Version="0.32.0" />
     <PackageVersion Include="Markdig" Version="1.4.1" />
     <PackageVersion Include="HtmlSanitizer" Version="9.2.1039" />
+    <PackageVersion Include="YamlDotNet" Version="18.1.0" /><!-- 010 research R2 -->
     <PackageVersion Include="Microsoft.Identity.Web" Version="4.16.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />

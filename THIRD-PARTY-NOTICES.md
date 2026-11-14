@@ -285,3 +285,4 @@ and container image (NuGet) or bundled into the web UI (npm).
 | NuGet | System.Memory.Data | 8.0.1 | MIT |
 | NuGet | System.Security.Cryptography.Pkcs | 10.0.13 | MIT |
 | NuGet | System.Security.Cryptography.ProtectedData | 4.5.0 | MIT |
+| NuGet | YamlDotNet | 18.1.0 | MIT |

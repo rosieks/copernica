@@ -157,7 +157,8 @@ test.describe.serial('007 — visual page editor', () => {
     const original = rawFile('toc-html-frontmatter.md');
     await signIn(page, 'alice', { editorMode: 'visual' });
     await openEditor(page, 'toc-html-frontmatter.md');
-    for (const name of [/^Front matter/, /^Table of contents/, /^HTML block/, /^HTML comment/]) {
+    // Front matter is a metadata card since 010.
+    for (const name of [/^Page metadata/, /^Table of contents/, /^HTML block/, /^HTML comment/]) {
       await expect(editor(page).getByRole('group', { name }).first()).toBeVisible();
     }
     await caretAfter(page, 'Welcome');

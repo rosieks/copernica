@@ -1,0 +1,6 @@
+---
+---
+
+# Empty front matter
+
+Body.

@@ -1,6 +1,7 @@
 using Ganss.Xss;
 using Markdig;
 using Markdig.Extensions.CustomContainers;
+using Markdig.Extensions.Yaml;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
 using Markdig.Syntax;
@@ -15,6 +16,7 @@ namespace Copernica.Rendering;
 public sealed class MarkdownRenderer
 {
     private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
+        .UseYamlFrontMatter()
         .UsePipeTables()
         .UseGridTables()
         .UseTaskLists()
@@ -28,6 +30,7 @@ public sealed class MarkdownRenderer
 
     /// <summary>The same extensions with exact source spans, for editing link targets in place (005 research R7).</summary>
     private readonly MarkdownPipeline _spanPipeline = new MarkdownPipelineBuilder()
+        .UseYamlFrontMatter()
         .UsePipeTables()
         .UseGridTables()
         .UseTaskLists()
@@ -40,6 +43,19 @@ public sealed class MarkdownRenderer
         .UsePreciseSourceLocation()
         .Build();
 
+    /// <summary>Comments have no front matter: a leading <c>---</c> block stays visible text (010).</summary>
+    private readonly MarkdownPipeline _commentPipeline = new MarkdownPipelineBuilder()
+        .UsePipeTables()
+        .UseGridTables()
+        .UseTaskLists()
+        .UseAutoLinks()
+        .UseEmphasisExtras()
+        .UseAutoIdentifiers(Markdig.Extensions.AutoIdentifiers.AutoIdentifierOptions.GitHub)
+        .UseFootnotes()
+        .UseDefinitionLists()
+        .Use<BlockContainersExtension>()
+        .Build();
+
     private readonly HtmlSanitizer _sanitizer = HtmlSanitizerFactory.Create();
 
     /// <summary>Parses with the same pipeline as <see cref="Render"/> (e.g. to find image references).</summary>
@@ -49,19 +65,43 @@ public sealed class MarkdownRenderer
     public MarkdownDocument ParseWithSourceSpans(string markdown) => Markdown.Parse(markdown, _spanPipeline);
 
     /// <summary>
-    /// Renders Markdown and sanitizes the result. <paramref name="links"/> rewrites link targets;
-    /// <paramref name="diagrams"/> turns Mermaid blocks into diagram figures (pages and previews, not comments).
+    /// Renders a comment and sanitizes the result. <paramref name="links"/> rewrites link targets.
+    /// Unlike pages, a leading <c>---</c> block is not front matter.
     /// </summary>
-    public string Render(string markdown, ILinkRewriter? links = null, bool diagrams = false) =>
-        RenderWithSections(markdown, links, diagrams).Html;
+    public string Render(string markdown, ILinkRewriter? links = null) =>
+        Render(markdown, _commentPipeline, links, diagrams: false).Html;
 
     /// <summary>
-    /// Like <see cref="Render"/>, and also lists the H1–H3 sections of the document (009), taken
-    /// from the same parse so their ids match the rendered headings.
+    /// Renders a page: sanitized HTML, the H1–H3 sections of the document (009), taken from the same
+    /// parse so their ids match the rendered headings, and its front matter (010), which is left out
+    /// of the HTML. <paramref name="diagrams"/> turns Mermaid blocks into diagram figures.
     /// </summary>
     public RenderedMarkdown RenderWithSections(string markdown, ILinkRewriter? links = null, bool diagrams = false)
     {
-        var document = Markdown.Parse(markdown, _pipeline);
+        if (FrontMatter.Locate(markdown) is not { } block)
+        {
+            return Render(markdown, _pipeline, links, diagrams);
+        }
+
+        // Markdig does not take every block FrontMatter.Locate does (an empty one, research R1);
+        // those are blanked out, keeping every offset after them.
+        if (!Markdown.Parse(markdown, _pipeline).OfType<YamlFrontMatterBlock>().Any())
+        {
+            var blanked = markdown.ToCharArray();
+            for (var i = block.Start; i < block.End; i++)
+            {
+                blanked[i] = blanked[i] is '\n' or '\r' ? blanked[i] : ' ';
+            }
+
+            markdown = new string(blanked);
+        }
+
+        return Render(markdown, _pipeline, links, diagrams) with { FrontMatter = FrontMatterParser.Parse(block.Body) };
+    }
+
+    private RenderedMarkdown Render(string markdown, MarkdownPipeline pipeline, ILinkRewriter? links, bool diagrams)
+    {
+        var document = Markdown.Parse(markdown, pipeline);
         var sections = SectionExtractor.Extract(document);
 
         if (links is not null)
@@ -79,7 +119,7 @@ public sealed class MarkdownRenderer
 
         using var writer = new StringWriter();
         var renderer = new HtmlRenderer(writer);
-        _pipeline.Setup(renderer);
+        pipeline.Setup(renderer);
         if (diagrams)
         {
             Replace<CodeBlockRenderer>(renderer, new DiagramCodeBlockRenderer(links));

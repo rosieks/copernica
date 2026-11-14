@@ -1,0 +1,129 @@
+/* Page metadata from front matter (010 contracts/ui.md "Page metadata"). */
+
+.page-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--prose-width);
+  margin-bottom: var(--space-5);
+  overflow-wrap: anywhere;
+}
+
+.page-meta .ui-callout {
+  margin-bottom: 0;
+}
+
+.page-meta__description {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+}
+
+.page-meta__people,
+.page-meta__properties dl {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.page-meta__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+}
+
+.page-meta__pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.page-meta__pair dt {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.page-meta__pair dt::after {
+  content: ':';
+}
+
+.page-meta__pair dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.page-meta__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-meta__tag {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-element);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  line-height: 1.75;
+}
+
+.page-meta__properties,
+.page-meta__raw {
+  font-size: var(--text-sm);
+}
+
+.page-meta__properties summary,
+.page-meta__raw summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.page-meta__properties[open] summary {
+  margin-bottom: var(--space-2);
+}
+
+.page-meta__properties > dl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-4);
+}
+
+/* Nested values: lists as lists, maps as indented name–value pairs. */
+.page-meta__list {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.page-meta__map {
+  flex-basis: 100%;
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.page-meta__pair:has(> dd > .page-meta__list, > dd > .page-meta__map) {
+  flex-direction: column;
+  gap: 0;
+}
+
+.page-meta__raw pre {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .page-meta__tag {
+    border-color: CanvasText;
+  }
+}

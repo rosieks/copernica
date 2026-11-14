@@ -18,9 +18,9 @@ export default defineConfig({
   },
   server: {
     proxy: { '/api': server, '/auth': server, '/health': server },
-    // Visual editor tests (007): the fidelity corpus reads the repository's specs, and the URL
-    // test pins the scheme list against the server sanitizer.
-    fs: { allow: ['.', '../../specs', '../Copernica/Rendering'] },
+    // Visual editor tests (007): the fidelity corpus reads the repository's specs and the front
+    // matter fixtures (010), and the URL test pins the scheme list against the server sanitizer.
+    fs: { allow: ['.', '../../specs', '../../tests/fixtures', '../Copernica/Rendering'] },
   },
   test: {
     environment: 'jsdom',

@@ -29,6 +29,7 @@ import { Toolbar, type EditorActions } from './Toolbar';
 import { blockPath, offsetForPath, positionForOffset } from './markdown/cursor';
 import type { ImageTarget } from '../editor/imageTarget';
 import { imageInputPlugin, visualTarget } from './imageInput';
+import { api, type Schemas } from '../api/client';
 import './visual.css';
 
 /** What the page editor can ask of the visual editor. */
@@ -58,12 +59,14 @@ interface Props {
   actions?: EditorActions;
   /** Pasted or dropped files and where they go (003). */
   onFiles?: (files: File[], pos: number) => void;
+  /** The front matter card's "Edit in Markdown mode" (010). */
+  onEditInMarkdown?: () => void;
 }
 
 const SERIALIZE_DELAY = 200;
 
 /** The visual (WYSIWYG) editor of 007. Its document is always derived from Markdown and written back to it. */
-export default function VisualEditor({ value, onChange, label, spaceId, pagePath, pending, editorRef, onAnnounce, onGuardFailure, actions = {}, onFiles }: Props) {
+export default function VisualEditor({ value, onChange, label, spaceId, pagePath, pending, editorRef, onAnnounce, onGuardFailure, actions = {}, onFiles, onEditInMarkdown }: Props) {
   const wrapper = useRef<HTMLDivElement>(null);
   const mount = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -76,6 +79,22 @@ export default function VisualEditor({ value, onChange, label, spaceId, pagePath
   const callbacks = useRef({ onChange, onAnnounce, onGuardFailure, actions, onFiles });
   callbacks.current = { onChange, onAnnounce, onGuardFailure, actions, onFiles };
   const editDiagramRef = useRef<(pos: number) => void>(() => {});
+  const editInMarkdownRef = useRef(onEditInMarkdown);
+  editInMarkdownRef.current = onEditInMarkdown;
+  // Front matter cards ask the server to read their block (010 research R9), once per source.
+  const frontMatters = useRef(new Map<string, Promise<Schemas['FrontMatter'] | null>>());
+  const loadFrontMatter = (source: string) => {
+    let result = frontMatters.current.get(source);
+    if (!result) {
+      result = api<{ frontMatter: Schemas['FrontMatter'] | null }>('/api/render', {
+        method: 'POST',
+        json: { spaceId, path: pagePath, markdown: source },
+      }).then((r) => r.frontMatter);
+      result.catch(() => frontMatters.current.delete(source));
+      frontMatters.current.set(source, result);
+    }
+    return result;
+  };
   const [state, setState] = useState<EditorState | null>(null);
   const [failed, setFailed] = useState(false);
   /** The diagram being edited: its position, or null for a new one (contracts/ui.md §8). */
@@ -174,7 +193,14 @@ export default function VisualEditor({ value, onChange, label, spaceId, pagePath
     const view = new EditorView(mount.current!, {
       state: initial,
       attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': label, class: 'visual-editor__content prose' },
-      nodeViews: createNodeViews({ spaceId, pagePath, pending: () => pendingRef.current, onEditDiagram: (pos) => editDiagramRef.current(pos) }),
+      nodeViews: createNodeViews({
+        spaceId,
+        pagePath,
+        pending: () => pendingRef.current,
+        onEditDiagram: (pos) => editDiagramRef.current(pos),
+        loadFrontMatter,
+        onEditInMarkdown: () => editInMarkdownRef.current?.(),
+      }),
       handleKeyDown: (editorView, event) => {
         if (slashController.current?.onKeyDown(event)) return true;
         // Enter on a selected diagram opens it for editing.

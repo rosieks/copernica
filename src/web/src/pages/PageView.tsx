@@ -12,6 +12,7 @@ import { SelectionPopover, useArticleSelection } from '../discussions/SelectionP
 import { rangesForOffsets, type TextAnchorInput } from '../discussions/textAnchor';
 import { highlightTargets, useDiscussions } from '../discussions/useDiscussions';
 import { useDiagrams } from '../diagrams/useDiagrams';
+import { PageMeta } from '../frontmatter/PageMeta';
 import { clickedLink, isPlainClick } from '../sections/contentLinks';
 import { SectionLinks } from '../sections/SectionLinks';
 import { useSectionNavigation } from '../sections/useSectionNavigation';
@@ -304,6 +305,8 @@ export function PageView({ space, path, version, asideNode, onTreeAction }: Prop
         </Toolbar.Root>
       </div>
       <PageInfo spaceId={spaceId} path={path} commitId={loaded.version.commitId} />
+      {/* Front matter (010) stays outside the article: discussions and section links ignore it. */}
+      {!loaded.tooLarge && <PageMeta frontMatter={loaded.frontMatter} />}
 
       {loaded.tooLarge ? (
         <>

@@ -55,8 +55,13 @@
 }
 
 /* The preview fills its box; the reading-width cap applies to the page view only. */
-.prose.preview-pane {
+.preview-pane .prose {
   max-width: none;
+}
+
+.preview-pane .page-meta {
+  max-width: none;
+  margin-top: var(--space-4);
 }
 
 .page-edit__modebar {

@@ -92,6 +92,13 @@ plain text and stay usable with ordinary git tooling.
   - Scripts, event handlers, inline styles, frames, forms and `javascript:`/`data:` links
     are removed.
   - Comments go through the same pipeline.
+  - Front matter (a leading `---` YAML block in a page) is parsed on the server with
+    YamlDotNet's event parser only: YAML tags never construct objects, and the block size,
+    nesting depth and alias expansion are limited, so an over-limit block is shown as
+    unreadable instead of slowing the server down. The block is left out of the rendered
+    HTML. Its values reach the browser as data and are shown as text. A property value
+    that is entirely an http, https or mailto address is marked by the server and shown as
+    a link; no other scheme becomes a link.
   - Element ids in user content (heading anchors, footnotes, ids in raw HTML) are prefixed
     with `user-content-`, so a page cannot take over the application's own element ids or
     clobber DOM globals. Links to sections keep their plain `#fragment`.
@@ -206,6 +213,8 @@ Mermaid 12 is not used: it depends on elkjs (EPL-2.0).
 
 **ProseMirror** (MIT) is the visual editor, with **@lezer/markdown** (MIT) as its Markdown
 parser.
+
+**YamlDotNet** (MIT) reads page front matter; only its event parser is used.
 
 **libgit2** (bundled with LibGit2Sharp) is licensed under **GPLv2 with a linking exception**.
 It is used unmodified as a dynamically loaded native library, which the exception permits.

@@ -5,7 +5,8 @@ import { isRoundTripSafe, serialize } from './index';
 describe('load-time guard (research R4, FR-019)', () => {
   it('accepts every corpus file', () => {
     for (const file of corpusFiles()) expect(isRoundTripSafe(file.text), file.name).toBe(true);
-  });
+    // Whole-corpus checks get more time than the 5 s default, like the fidelity tests.
+  }, 30_000);
 
   it('rejects a page whose serialization would differ', () => {
     const [unsafe] = guardFiles();

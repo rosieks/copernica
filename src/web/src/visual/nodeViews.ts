@@ -1,4 +1,5 @@
 import type { Node as PMNode } from 'prosemirror-model';
+import type { Schemas } from '../api/client';
 import type { EditorView, NodeView, NodeViewConstructor } from 'prosemirror-view';
 import { svgImageSrc } from '../diagrams/display';
 import { rendererClient } from '../diagrams/rendererClient';
@@ -18,6 +19,10 @@ export interface NodeViewContext {
   pending: () => readonly PendingImage[];
   /** Opens the diagram dialog for the diagram at `pos` (US4). */
   onEditDiagram?: (pos: number) => void;
+  /** The server's reading of a front matter block (010 research R9). */
+  loadFrontMatter?: (source: string) => Promise<Schemas['FrontMatter'] | null>;
+  /** Switches to Markdown mode with the caret at the start of the file, where front matter is (010). */
+  onEditInMarkdown?: () => void;
 }
 
 /** Same limit as the server's (004 DiagramBlock.MaxSourceLength). */
@@ -136,6 +141,104 @@ class RawBlockView implements NodeView {
     this.dom.setAttribute('aria-label', `${label}, can be edited in Markdown mode`);
     this.dom.title = `${label} — can be edited in Markdown mode`;
     this.dom.append(el('span', 'visual-raw__label', label), el('code', 'visual-raw__source', firstLine(node.attrs.source as string)));
+  }
+
+  ignoreMutation() {
+    return true;
+  }
+}
+
+const STATUS_LABELS: Record<string, string> = { draft: 'Draft', deprecated: 'Deprecated', archived: 'Archived' };
+
+/**
+ * Front matter as a read-only card (010 contracts/ui.md "Visual editor card"). The fields come from
+ * the server and are shown as text; the block itself is kept verbatim and edited in Markdown mode.
+ */
+class FrontMatterView implements NodeView {
+  dom: HTMLElement;
+  private node: PMNode;
+  private readonly body = el('div', 'visual-front-matter__body');
+  private shown: string | null = null;
+
+  constructor(
+    node: PMNode,
+    private readonly ctx: NodeViewContext,
+  ) {
+    this.node = node;
+    this.dom = el('div', 'visual-front-matter');
+    this.dom.contentEditable = 'false';
+    this.dom.setAttribute('role', 'group');
+    this.dom.setAttribute('aria-label', 'Page metadata, can be edited in Markdown mode');
+    const edit = el('button', 'ui-button ui-button--secondary ui-button--sm visual-front-matter__edit', 'Edit in Markdown mode');
+    edit.type = 'button';
+    edit.addEventListener('click', () => this.ctx.onEditInMarkdown?.());
+    this.dom.append(el('span', 'visual-raw__label', 'Page metadata'), this.body, edit);
+    this.load();
+  }
+
+  private load() {
+    const source = this.node.attrs.source as string;
+    if (this.shown === source) return;
+    this.shown = source;
+    if (!this.ctx.loadFrontMatter) {
+      this.showSource();
+      return;
+    }
+    this.body.replaceChildren(el('p', 'visual-front-matter__status', 'Loading page metadata…'));
+    this.ctx.loadFrontMatter(source).then(
+      (frontMatter) => {
+        if (this.shown === source) this.showFields(frontMatter);
+      },
+      () => {
+        if (this.shown === source) this.showSource();
+      },
+    );
+  }
+
+  private showFields(frontMatter: Schemas['FrontMatter'] | null) {
+    if (!frontMatter) return this.showSource();
+    if (!frontMatter.readable) {
+      this.body.replaceChildren(el('p', 'visual-front-matter__status', "This page's metadata could not be read."));
+      return;
+    }
+    const rows: [string, string][] = [];
+    if (frontMatter.title) rows.push(['Title', frontMatter.title]);
+    if (frontMatter.status) rows.push(['Status', STATUS_LABELS[frontMatter.status] ?? frontMatter.status]);
+    if (frontMatter.description) rows.push(['Description', frontMatter.description]);
+    if (frontMatter.tags.length) rows.push(['Tags', frontMatter.tags.join(', ')]);
+    if (frontMatter.owners.length) rows.push([frontMatter.owners.length === 1 ? 'Owner' : 'Owners', frontMatter.owners.join(', ')]);
+    if (frontMatter.authors.length) rows.push([frontMatter.authors.length === 1 ? 'Author' : 'Authors', frontMatter.authors.join(', ')]);
+    const more = frontMatter.properties.length + (frontMatter.aliases.length ? 1 : 0);
+
+    const children: HTMLElement[] = [];
+    if (rows.length) {
+      const list = el('dl', 'visual-front-matter__fields');
+      for (const [name, value] of rows) {
+        const row = el('div');
+        row.append(el('dt', undefined, name), el('dd', undefined, value));
+        list.append(row);
+      }
+      children.push(list);
+    }
+    if (more) children.push(el('p', 'visual-front-matter__more', more === 1 ? '1 more property' : `${more} more properties`));
+    if (!children.length) children.push(el('p', 'visual-front-matter__status', 'No metadata fields'));
+    this.body.replaceChildren(...children);
+  }
+
+  /** The generic placeholder content, as for other unsupported Markdown. */
+  private showSource() {
+    this.body.replaceChildren(el('code', 'visual-raw__source', firstLine(this.node.attrs.source as string)));
+  }
+
+  update(node: PMNode) {
+    if (node.type !== this.node.type || node.attrs.kind !== 'front-matter') return false;
+    this.node = node;
+    this.load();
+    return true;
+  }
+
+  stopEvent(event: Event) {
+    return event.target instanceof HTMLButtonElement;
   }
 
   ignoreMutation() {
@@ -275,7 +378,7 @@ class ListItemView implements NodeView {
 
 export function createNodeViews(ctx: NodeViewContext): Record<string, NodeViewConstructor> {
   return {
-    raw_block: (node) => new RawBlockView(node),
+    raw_block: (node) => (node.attrs.kind === 'front-matter' ? new FrontMatterView(node, ctx) : new RawBlockView(node)),
     raw_inline: (node) => new RawInlineView(node),
     image: (node) => new ImageView(node, ctx),
     list_item: (node, view, getPos) => new ListItemView(node, view, getPos),

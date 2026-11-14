@@ -137,6 +137,13 @@ const SCREENS: Screen[] = [
       await p.getByRole('heading', { name: 'Zażółć gęślą jaźń' }).hover();
     },
   },
+  // 010: page metadata from front matter (banner, tags, people), Properties closed and open.
+  { name: 'S3 page metadata', url: '/s/handbook/ops/release-process.md', prepare: (p) => p.getByText('Properties', { exact: true }).waitFor() },
+  {
+    name: 'S3 page metadata properties',
+    url: '/s/handbook/ops/release-process.md',
+    prepare: (p) => p.getByText('Properties', { exact: true }).click(),
+  },
   { name: 'S3 old version', url: '/s/handbook/-/history/guides/history.md', prepare: (p) => p.getByRole('link', { name: /, version of / }).first().click() },
   { name: 'S4 editor', url: '/s/handbook/-/edit/guides/setup.md' },
   { name: 'S5 history', url: '/s/handbook/-/history/guides/history.md' },

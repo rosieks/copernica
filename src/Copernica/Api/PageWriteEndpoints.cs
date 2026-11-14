@@ -121,7 +121,7 @@ public static class PageWriteEndpoints
         var images = await pending.ResolveAsync(access.User!, access.Space!.Id, normalized, request.Attachments, context.RequestAborted);
         var urls = images.ToDictionary(i => i.RepositoryPath, i => $"/api/uploads/{i.Id}", StringComparer.Ordinal);
         var rendered = pages.RenderPreview(access.Space!, normalized, request.Markdown, urls);
-        return Results.Ok(new { html = rendered.Html, sections = rendered.Sections });
+        return Results.Ok(new { html = rendered.Html, sections = rendered.Sections, frontMatter = rendered.FrontMatter });
     }
 
     private static async Task<IResult> HistoryAsync(

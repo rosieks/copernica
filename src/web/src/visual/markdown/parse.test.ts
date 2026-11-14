@@ -139,7 +139,8 @@ describe('parse: totality', () => {
       expect(() => parse(text)).not.toThrow();
       expect(isRoundTripSafe(text)).toBe(true);
     }
-  });
+    // 2000 inputs: past the 5 s default when the whole suite runs in parallel on a busy machine.
+  }, 30_000);
 
   it('never throws for CommonMark examples with one character deleted', () => {
     for (const { text } of commonMarkExamples()) {
